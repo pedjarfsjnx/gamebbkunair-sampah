@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎮 Simulasi Multiplayer - Detektif Lingkungan</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #1A237E 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding: 20px;
+    }
+
+    h1 {
+      font-family: 'Fredoka One', sans-serif;
+      font-size: 2rem;
+      text-align: center;
+      margin-bottom: 6px;
+      text-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+    }
+
+    .subtitle {
+      text-align: center;
+      opacity: 0.85;
+      margin-bottom: 24px;
+      font-size: 0.95rem;
+    }
+
+    .sim-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      max-width: 1400px;
+      margin: 0 auto 20px;
+    }
+
+    .sim-panel {
+      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255,255,255,0.25);
+      border-radius: 16px;
+      padding: 14px;
+      backdrop-filter: blur(8px);
+      min-height: 360px;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .sim-panel.active {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.6);
+      box-shadow: 0 0 20px rgba(255,215,0,0.3);
+    }
+
+    .panel-header {
+      font-family: 'Fredoka One', sans-serif;
+      font-size: 1rem;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .role-badge {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+    }
+
+    .role-host { background: #E65100; color: #fff; }
+    .role-player { background: #1565C0; color: #fff; }
+
+    .log-area {
+      font-size: 0.78rem;
+      line-height: 1.7;
+      height: 250px;
+      overflow-y: auto;
+      padding: 6px;
+    }
+
+    .log-entry {
+      display: flex;
+      gap: 6px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .log-entry.info { background: rgba(255,255,255,0.08); }
+    .log-entry.success { background: rgba(76,175,80,0.2); color: #A5D6A7; }
+    .log-entry.warning { background: rgba(255,193,7,0.2); color: #FFE082; }
+    .log-entry.error { background: rgba(244,67,54,0.2); color: #FFCDD2; }
+    .log-entry.action { background: rgba(33,150,243,0.2); color: #BBDEFB; }
+
+    .log-time { opacity: 0.6; white-space: nowrap; font-size: 0.72rem; }
+
+    .status-bar {
+      margin-top: 10px;
+      padding: 6px 10px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .status-lobby { background: rgba(255,152,0,0.3); border: 1px solid rgba(255,152,0,0.5); }
+    .status-waiting { background: rgba(33,150,243,0.3); border: 1px solid rgba(33,150,243,0.5); }
+    .status-playing { background: rgba(76,175,80,0.3); border: 1px solid rgba(76,175,80,0.5); }
+    .status-paused { background: rgba(156,39,176,0.3); border: 1px solid rgba(156,39,176,0.5); }
+    .status-finished { background: rgba(255,215,0,0.3); border: 1px solid rgba(255,215,0,0.6); }
+
+    .ctrl-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      max-width: 1400px;
+      margin: 0 auto 16px;
+    }
+
+    button.ctrl-btn {
+      font-family: 'Fredoka One', sans-serif;
+      font-size: 1rem;
+      padding: 10px 22px;
+      border: 3px solid rgba(255,255,255,0.4);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(4px);
+    }
+
+    button.ctrl-btn:hover {
+      background: rgba(255,255,255,0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    button.ctrl-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    button.ctrl-btn.primary { background: rgba(76,175,80,0.4); border-color: #81C784; }
+    button.ctrl-btn.danger { background: rgba(244,67,54,0.4); border-color: #E57373; }
+
+    .score-board {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      max-width: 1400px;
+      margin: 0 auto 16px;
+      justify-content: center;
+    }
+
+    .score-card {
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-weight: 900;
+      font-size: 0.95rem;
+      border: 2px solid rgba(255,255,255,0.3);
+      min-width: 120px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .item-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-width: 1400px;
+      margin: 0 auto 16px;
+      justify-content: center;
+    }
+
+    .item-chip {
+      padding: 4px 10px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border: 1.5px solid rgba(255,255,255,0.3);
+      transition: all 0.3s ease;
+    }
+
+    .item-chip.unclaimed { background: rgba(255,255,255,0.15); }
+    .item-chip.claimed { border-width: 2px; font-weight: 900; }
+
+    .timer-display {
+      font-family: 'Fredoka One', sans-serif;
+      font-size: 2.5rem;
+      text-align: center;
+      margin: 8px 0;
+      text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+    }
+
+    .phase-label {
+      text-align: center;
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-family: 'Fredoka One', sans-serif;
+      font-size: 0.9rem;
+      opacity: 0.8;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🎮 Simulasi Multiplayer - Detektif Lingkungan KKN</h1>
+<p class="subtitle">1 Host (Spectator/Proyektor Guru) + 4 Player (Laptop Siswa) — SD Negeri 4 Siliragung</p>
+
+<div class="timer-display" id="timer-disp">03:00</div>
+<div class="phase-label" id="phase-disp">📋 Fase: LOBBY</div>
+
+<div class="ctrl-row">
+  <button class="ctrl-btn primary" id="btn-sim-start" onclick="runSimulation()">▶ Mulai Simulasi Otomatis</button>
+  <button class="ctrl-btn" id="btn-step" onclick="nextStep()" disabled>⏭ Step Berikutnya</button>
+  <button class="ctrl-btn danger" onclick="resetSim()">🔄 Reset</button>
+  <button class="ctrl-btn" onclick="window.open('http://localhost:8080','_blank')">🎮 Buka Game Asli</button>
+</div>
+
+<div class="score-board" id="score-board">
+  <div class="score-card" style="background:rgba(229,57,53,0.3);">🔴 Tim Merah — ⭐ 0</div>
+  <div class="score-card" style="background:rgba(30,136,229,0.3);">🔵 Tim Biru — ⭐ 0</div>
+  <div class="score-card" style="background:rgba(76,175,80,0.3);">🟢 Tim Hijau — ⭐ 0</div>
+  <div class="score-card" style="background:rgba(255,179,0,0.3);">🟡 Tim Kuning — ⭐ 0</div>
+</div>
+
+<div class="section-title">🎯 Status Item Kesalahan Lingkungan (10 Item)</div>
+<div class="item-grid" id="item-grid"></div>
+
+<div class="sim-grid" id="sim-grid"></div>
+
+<script>
+const TEAMS = [
+  { id: 'red', name: 'Tim Merah', badge: '🔴', color: '#E53935', bg: 'rgba(229,57,53,0.3)' },
+  { id: 'blue', name: 'Tim Biru', badge: '🔵', color: '#1E88E5', bg: 'rgba(30,136,229,0.3)' },
+  { id: 'green', name: 'Tim Hijau', badge: '🟢', color: '#43A047', bg: 'rgba(76,175,80,0.3)' },
+  { id: 'yellow', name: 'Tim Kuning', badge: '🟡', color: '#FFB300', bg: 'rgba(255,179,0,0.3)' }
+];
+
+const ITEMS = [
+  { id: 1, name: 'Sampah di Sungai', icon: '🐟' },
+  { id: 2, name: 'Botol Plastik', icon: '🍶' },
+  { id: 3, name: 'Asap Pabrik', icon: '🏭' },
+  { id: 4, name: 'Mading Rusak', icon: '📋' },
+  { id: 5, name: 'Sampah Terbakar', icon: '🔥' },
+  { id: 6, name: 'Seragam Kotor', icon: '👕' },
+  { id: 7, name: 'Tong Sampah Terbalik', icon: '🗑️' },
+  { id: 8, name: 'Tanaman Layu', icon: '🌿' },
+  { id: 9, name: 'Coretan Dinding', icon: '✏️' },
+  { id: 10, name: 'Plastic Bag', icon: '🛍️' }
+];
+
+const PANELS = [
+  { id: 'host', label: '🖥️ HOST', role: 'HOST', teamName: 'Spectator Guru', roleClass: 'role-host' },
+  { id: 'p1', label: '💻 Player 1', role: 'PLAYER', teamName: 'Tim Merah', teamId: 'red', roleClass: 'role-player' },
+  { id: 'p2', label: '💻 Player 2', role: 'PLAYER', teamName: 'Tim Biru', teamId: 'blue', roleClass: 'role-player' },
+  { id: 'p3', label: '💻 Player 3', role: 'PLAYER', teamName: 'Tim Hijau', teamId: 'green', roleClass: 'role-player' },
+  { id: 'p4', label: '💻 Player 4', role: 'PLAYER', teamName: 'Tim Kuning', teamId: 'yellow', roleClass: 'role-player' }
+];
+
+let state = {
+  phase: 'LOBBY',
+  roomCode: '',
+  timeLeft: 180,
+  itemOwnership: {},
+  scores: { red: 0, blue: 0, green: 0, yellow: 0 },
+  connected: { red: false, blue: false, green: false, yellow: false },
+  timerInterval: null,
+  simRunning: false,
+  simQueue: [],
+  simIdx: 0
+};
+
+function initPanels() {
+  const grid = document.getElementById('sim-grid');
+  grid.innerHTML = '';
+  PANELS.forEach(p => {
+    grid.innerHTML += `
+      <div class="sim-panel" id="panel-${p.id}">
+        <div class="panel-header">
+          ${p.label}
+          <span class="role-badge ${p.roleClass}">${p.role}</span>
+        </div>
+        <div class="log-area" id="log-${p.id}"></div>
+        <div class="status-bar status-lobby" id="status-${p.id}">📋 LOBBY</div>
+      </div>
+    `;
+  });
+  initItems();
+}
+
+function initItems() {
+  const grid = document.getElementById('item-grid');
+  grid.innerHTML = '';
+  ITEMS.forEach(item => {
+    grid.innerHTML += `<div class="item-chip unclaimed" id="item-${item.id}">${item.icon} ${item.name}</div>`;
+  });
+}
+
+function log(panelId, msg, type = 'info') {
+  const area = document.getElementById(`log-${panelId}`);
+  if (!area) return;
+  const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const el = document.createElement('div');
+  el.className = `log-entry ${type}`;
+  el.innerHTML = `<span class="log-time">${time}</span><span>${msg}</span>`;
+  area.appendChild(el);
+  area.scrollTop = area.scrollHeight;
+}
+
+function setStatus(panelId, text, cls) {
+  const el = document.getElementById(`status-${panelId}`);
+  if (!el) return;
+  el.textContent = text;
+  el.className = `status-bar ${cls}`;
+}
+
+function highlight(panelId) {
+  document.querySelectorAll('.sim-panel').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById(`panel-${panelId}`);
+  if (el) el.classList.add('active');
+}
+
+function updateScoreBoard() {
+  const board = document.getElementById('score-board');
+  board.innerHTML = TEAMS.map(t => 
+    `<div class="score-card" style="background:${t.bg}; ${state.connected[t.id] ? 'border-color: rgba(255,255,255,0.6);' : ''}">${t.badge} ${t.name} — ⭐ ${state.scores[t.id]}</div>`
+  ).join('');
+}
+
+function claimItem(itemId, teamId) {
+  if (state.itemOwnership[itemId]) return false;
+  state.itemOwnership[itemId] = teamId;
+  state.scores[teamId]++;
+  const team = TEAMS.find(t => t.id === teamId);
+  const chip = document.getElementById(`item-${itemId}`);
+  if (chip && team) {
+    chip.className = 'item-chip claimed';
+    chip.style.background = team.bg;
+    chip.style.borderColor = team.color;
+  }
+  updateScoreBoard();
+  return true;
+}
+
+function updateTimer() {
+  const m = Math.floor(state.timeLeft / 60);
+  const s = state.timeLeft % 60;
+  document.getElementById('timer-disp').textContent = 
+    `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function updatePhase() {
+  document.getElementById('phase-disp').textContent = `📋 Fase: ${state.phase}`;
+}
+
+// ── Simulation Script ──────────────────────────────────────────────────────
+function buildSimQueue() {
+  const code = 'SILIR-' + Math.random().toString(36).substr(2,4).toUpperCase();
+  state.roomCode = code;
+
+  const q = [
+    // STEP 1: HOST membuat ruangan
+    { delay: 500, fn: () => {
+      highlight('host');
+      log('host', '🖥️ Memilih peran: HOST (Proyektor Guru)', 'action');
+      log('host', `📦 Membuat Ruangan dengan 4 Tim...`, 'info');
+    }},
+    { delay: 800, fn: () => {
+      log('host', `✅ Ruangan terbuat! Kode: <strong>${code}</strong>`, 'success');
+      log('host', '🔒 Tombol "Mulai" DIKUNCI — menunggu siswa bergabung', 'warning');
+      setStatus('host', `📋 LOBBY · ${code}`, 'status-lobby');
+    }},
+
+    // STEP 2: Player 1 (Tim Merah) join
+    { delay: 1200, fn: () => {
+      highlight('p1');
+      log('p1', '🎮 Memilih peran: PLAYER (Laptop Siswa)', 'action');
+      log('p1', `🔑 Memasukkan kode: ${code}`, 'info');
+      log('p1', '🔴 Memilih Tim Merah', 'action');
+    }},
+    { delay: 600, fn: () => {
+      state.connected.red = true;
+      log('p1', '📡 Mengirim sinyal PLAYER_JOINED ke Host...', 'info');
+      log('p1', '⏳ Menunggu Host memulai pertandingan...', 'warning');
+      setStatus('p1', '⏳ LOBBY · Terhubung', 'status-waiting');
+      // Host receives it
+      log('host', '📨 Sinyal diterima: 🔴 Tim Merah telah bergabung!', 'success');
+      log('host', '🟢 Status Tim Merah → TERHUBUNG', 'success');
+      updateScoreBoard();
+    }},
+
+    // STEP 3: Player 2 (Tim Biru) join
+    { delay: 1000, fn: () => {
+      highlight('p2');
+      log('p2', '🎮 Memilih peran: PLAYER (Laptop Siswa)', 'action');
+      log('p2', `🔑 Memasukkan kode: ${code}`, 'info');
+      log('p2', '🔵 Memilih Tim Biru', 'action');
+    }},
+    { delay: 600, fn: () => {
+      state.connected.blue = true;
+      log('p2', '📡 Mengirim sinyal PLAYER_JOINED ke Host...', 'info');
+      log('p2', '⏳ Menunggu Host memulai pertandingan...', 'warning');
+      setStatus('p2', '⏳ LOBBY · Terhubung', 'status-waiting');
+      log('host', '📨 Sinyal diterima: 🔵 Tim Biru telah bergabung!', 'success');
+      log('host', '🟢 Status Tim Biru → TERHUBUNG', 'success');
+      updateScoreBoard();
+    }},
+
+    // STEP 4: Player 3 (Tim Hijau)
+    { delay: 1000, fn: () => {
+      highlight('p3');
+      log('p3', '🎮 Memilih peran: PLAYER (Laptop Siswa)', 'action');
+      log('p3', `🔑 Memasukkan kode: ${code}`, 'info');
+      log('p3', '🟢 Memilih Tim Hijau', 'action');
+    }},
+    { delay: 600, fn: () => {
+      state.connected.green = true;
+      log('p3', '📡 Mengirim sinyal PLAYER_JOINED ke Host...', 'info');
+      log('p3', '⏳ Menunggu Host memulai pertandingan...', 'warning');
+      setStatus('p3', '⏳ LOBBY · Terhubung', 'status-waiting');
+      log('host', '📨 Sinyal diterima: 🟢 Tim Hijau telah bergabung!', 'success');
+      log('host', '🟢 Status Tim Hijau → TERHUBUNG', 'success');
+      updateScoreBoard();
+    }},
+
+    // STEP 5: Player 4 (Tim Kuning)
+    { delay: 1000, fn: () => {
+      highlight('p4');
+      log('p4', '🎮 Memilih peran: PLAYER (Laptop Siswa)', 'action');
+      log('p4', `🔑 Memasukkan kode: ${code}`, 'info');
+      log('p4', '🟡 Memilih Tim Kuning', 'action');
+    }},
+    { delay: 600, fn: () => {
+      state.connected.yellow = true;
+      log('p4', '📡 Mengirim sinyal PLAYER_JOINED ke Host...', 'info');
+      log('p4', '⏳ Menunggu Host memulai pertandingan...', 'warning');
+      setStatus('p4', '⏳ LOBBY · Terhubung', 'status-waiting');
+      log('host', '📨 Sinyal diterima: 🟡 Tim Kuning telah bergabung!', 'success');
+      log('host', '🟢 Status Tim Kuning → TERHUBUNG', 'success');
+      log('host', '✅ SEMUA 4 TIM TERHUBUNG!', 'success');
+      log('host', '🔓 Tombol "Mulai Pertandingan" → AKTIF (hijau menyala)!', 'success');
+      updateScoreBoard();
+    }},
+
+    // STEP 6: HOST mulai game
+    { delay: 1500, fn: () => {
+      highlight('host');
+      log('host', '▶ Guru menekan "🚀 Mulai Pertandingan Real-Time"', 'action');
+      log('host', '📡 Broadcast START_GAME ke semua 4 laptop siswa...', 'info');
+    }},
+    { delay: 500, fn: () => {
+      state.phase = 'PLAYING';
+      updatePhase();
+      log('host', '🖥️ Host masuk MODE SPECTATOR — klik dikunci!', 'warning');
+      log('host', '🎬 Tampilan Proyektor: papan skor, timer, klaim real-time', 'success');
+      setStatus('host', '👁️ SPECTATOR · Game Berjalan', 'status-playing');
+      // Timer
+      state.timerInterval = setInterval(() => {
+        if (state.phase !== 'PLAYING') return;
+        state.timeLeft = Math.max(0, state.timeLeft - 1);
+        updateTimer();
+      }, 1000);
+    }},
+
+    // All players enter game
+    { delay: 400, fn: () => {
+      ['p1','p2','p3','p4'].forEach((pid, i) => {
+        const team = TEAMS[i];
+        log(pid, '📨 Menerima START_GAME dari Host!', 'success');
+        log(pid, `▶ Masuk ke Game! Tim: ${team.badge} ${team.name}`, 'success');
+        setStatus(pid, `🎮 PLAYING · ${team.badge} ${team.name}`, 'status-playing');
+      });
+    }},
+
+    // GAMEPLAY: Tim Merah klaim item 1
+    { delay: 2000, fn: () => {
+      highlight('p1');
+      log('p1', '🔍 Memeriksa area sekolah...', 'info');
+      log('p1', '🎯 KLIK! Menemukan "🐟 Sampah di Sungai"!', 'action');
+      log('p1', '📡 Broadcast CLAIM_ITEM #1 ke semua laptop...', 'info');
+    }},
+    { delay: 500, fn: () => {
+      claimItem(1, 'red');
+      state.phase = 'PAUSED';
+      updatePhase();
+      log('p1', '✅ KLAIM BERHASIL! +1 ⭐ untuk Tim Merah!', 'success');
+      log('p1', '📚 Popup edukasi tampil di layar Tim Merah', 'info');
+      setStatus('p1', '⏸ PAUSED · Popup Edukasi', 'status-paused');
+      // Host shows popup too
+      log('host', '📨 Menerima CLAIM_ITEM: 🔴 Tim Merah → Item 1', 'success');
+      log('host', '📊 Papan Skor update: Tim Merah ⭐ 1', 'success');
+      log('host', '📚 Popup edukasi tampil di layar Proyektor!', 'info');
+      setStatus('host', '⏸ PAUSED · Edukasi ditampilkan', 'status-paused');
+      // Other players: silent lock
+      ['p2','p3','p4'].forEach(pid => {
+        log(pid, '📨 Menerima: Item 1 diklaim 🔴 Tim Merah!', 'warning');
+        log(pid, '🔒 Item 1 DIKUNCI — tidak bisa diklik lagi', 'warning');
+        log(pid, '📊 Skor update tanpa popup (silent)', 'info');
+      });
+    }},
+
+    // Auto-resume after 4 seconds
+    { delay: 4000, fn: () => {
+      state.phase = 'PLAYING';
+      updatePhase();
+      log('p1', '⏱ Auto-resume (4 detik) → Lanjut rebutan!', 'info');
+      setStatus('p1', '🎮 PLAYING · Tim Merah', 'status-playing');
+      log('host', '▶ Game lanjut — semua tim bisa klik item berikutnya', 'info');
+      setStatus('host', '👁️ SPECTATOR · Game Berjalan', 'status-playing');
+    }},
+
+    // Tim Biru klaim item 3
+    { delay: 1500, fn: () => {
+      highlight('p2');
+      log('p2', '🔍 Mencari kesalahan di area sekolah...', 'info');
+      log('p2', '🎯 KLIK! Menemukan "🏭 Asap Pabrik"!', 'action');
+      log('p2', '📡 Broadcast CLAIM_ITEM #3 ke semua laptop...', 'info');
+    }},
+    { delay: 500, fn: () => {
+      claimItem(3, 'blue');
+      state.phase = 'PAUSED';
+      updatePhase();
+      log('p2', '✅ KLAIM BERHASIL! +1 ⭐ untuk Tim Biru!', 'success');
+      setStatus('p2', '⏸ PAUSED · Popup Edukasi', 'status-paused');
+      log('host', '📨 Menerima CLAIM_ITEM: 🔵 Tim Biru → Item 3', 'success');
+      log('host', '📊 Papan Skor update: Tim Biru ⭐ 1', 'success');
+      ['p1','p3','p4'].forEach(pid => {
+        log(pid, '📨 Item 3 diklaim 🔵 Tim Biru — dikunci!', 'warning');
+      });
+    }},
+
+    { delay: 4000, fn: () => {
+      state.phase = 'PLAYING';
+      updatePhase();
+      setStatus('p2', '🎮 PLAYING · Tim Biru', 'status-playing');
+      setStatus('host', '👁️ SPECTATOR · Game Berjalan', 'status-playing');
+    }},
+
+    // Tim Hijau klaim item 5
+    { delay: 1200, fn: () => {
+      highlight('p3');
+      log('p3', '🎯 KLIK! Menemukan "🔥 Sampah Terbakar"!', 'action');
+      log('p3', '📡 Broadcast CLAIM_ITEM #5...', 'info');
+    }},
+    { delay: 500, fn: () => {
+      claimItem(5, 'green');
+      state.phase = 'PAUSED';
+      updatePhase();
+      log('p3', '✅ KLAIM! +1 ⭐ Tim Hijau!', 'success');
+      setStatus('p3', '⏸ PAUSED · Popup Edukasi', 'status-paused');
+      log('host', '📊 Tim Hijau ⭐ 1 — 3 item terklaim dari 10', 'success');
+      ['p1','p2','p4'].forEach(pid => log(pid, '📨 Item 5 → 🟢 Tim Hijau. Dikunci!', 'warning'));
+    }},
+
+    { delay: 4000, fn: () => {
+      state.phase = 'PLAYING';
+      updatePhase();
+      setStatus('p3', '🎮 PLAYING · Tim Hijau', 'status-playing');
+      setStatus('host', '👁️ SPECTATOR · Game Berjalan', 'status-playing');
+    }},
+
+    // Tim Kuning klaim item 2
+    { delay: 1000, fn: () => {
+      highlight('p4');
+      log('p4', '🎯 KLIK! Menemukan "🍶 Botol Plastik"!', 'action');
+    }},
+    { delay: 500, fn: () => {
+      claimItem(2, 'yellow');
+      state.phase = 'PAUSED';
+      updatePhase();
+      log('p4', '✅ KLAIM! +1 ⭐ Tim Kuning!', 'success');
+      setStatus('p4', '⏸ PAUSED · Popup Edukasi', 'status-paused');
+      log('host', '📊 Semua tim kini punya 1 poin! Game seru!', 'success');
+      ['p1','p2','p3'].forEach(pid => log(pid, '📨 Item 2 → 🟡 Tim Kuning. Dikunci!', 'warning'));
+    }},
+
+    { delay: 4000, fn: () => {
+      state.phase = 'PLAYING';
+      updatePhase();
+      setStatus('p4', '🎮 PLAYING · Tim Kuning', 'status-playing');
+    }},
+
+    // Race condition: 2 player coba klaim item 4 bersamaan
+    { delay: 1200, fn: () => {
+      highlight('p1');
+      log('p1', '⚡ KLIK! Coba klaim "📋 Mading Rusak" (Item 4)!', 'action');
+      log('p2', '⚡ KLIK! Coba klaim "📋 Mading Rusak" (Item 4) juga!', 'action');
+      log('host', '⚡ Race condition! 2 tim klaim item 4 bersamaan!', 'warning');
+    }},
+    { delay: 400, fn: () => {
+      // First claim wins
+      claimItem(4, 'red');
+      log('p1', '✅ MENANG RACE! Tim Merah klaim Item 4 duluan!', 'success');
+      log('p2', '❌ Terlambat! Item 4 sudah diklaim Tim Merah', 'error');
+      log('p2', '🔒 Guard double-claim aktif — tidak terjadi skor ganda', 'warning');
+      log('host', '✅ Anti double-claim bekerja. Tim Merah +1', 'success');
+      state.phase = 'PAUSED';
+      updatePhase();
+      ['p3','p4'].forEach(pid => log(pid, '🔒 Item 4 → 🔴 Tim Merah (race won)', 'warning'));
+    }},
+
+    { delay: 4000, fn: () => {
+      state.phase = 'PLAYING';
+      updatePhase();
+      setStatus('p1', '🎮 PLAYING · Tim Merah ⭐2', 'status-playing');
+      setStatus('p2', '🎮 PLAYING · Tim Biru ⭐1', 'status-playing');
+    }},
+
+    // Lanjutkan sisa item hingga selesai
+    { delay: 1500, fn: () => {
+      log('host', '📊 Progress: 5/10 item terklaim. Game berlanjut...', 'info');
+      // Claim remaining items quickly
+      [
+        [6, 'green'], [7, 'yellow'], [8, 'blue'], [9, 'red'], [10, 'green']
+      ].forEach(([itemId, teamId], i) => {
+        setTimeout(() => {
+          claimItem(itemId, teamId);
+          const team = TEAMS.find(t => t.id === teamId);
+          PANELS.forEach(p => {
+            if (p.id !== 'host') {
+              if (p.teamId === teamId) log(p.id, `✅ Klaim Item ${itemId}! +1 ⭐`, 'success');
+              else log(p.id, `📨 Item ${itemId} → ${team.badge} ${team.name}`, 'warning');
+            }
+          });
+          log('host', `📊 ${10-5-i-1} item tersisa`, 'info');
+        }, i * 1800);
+      });
+    }},
+
+    // Victory!
+    { delay: 11000, fn: () => {
+      state.phase = 'FINISHED';
+      updatePhase();
+      clearInterval(state.timerInterval);
+
+      const sorted = [...TEAMS].sort((a,b) => state.scores[b.id] - state.scores[a.id]);
+      const winner = sorted[0];
+
+      highlight('host');
+      log('host', '🎉 SEMUA 10 ITEM TERKLAIM! GAME SELESAI!', 'success');
+      log('host', `🏆 PEMENANG: ${winner.badge} ${winner.name} dengan ⭐ ${state.scores[winner.id]} poin!`, 'success');
+      log('host', '🎓 Sertifikat Panggung Juara tampil di proyektor!', 'success');
+      log('host', '📝 KKN BBK 8 UNIVERSITAS AIRLANGGA - DESA SILIRAGUNG', 'info');
+      setStatus('host', '🏆 GAME SELESAI! Podium Juara!', 'status-finished');
+
+      PANELS.filter(p => p.role === 'PLAYER').forEach((p, i) => {
+        const team = TEAMS[i];
+        log(p.id, '🎉 Semua item ditemukan! Game selesai!', 'success');
+        log(p.id, `🏆 Pemenang: ${winner.badge} ${winner.name}!`, 'success');
+        log(p.id, `📊 Skormu: ⭐ ${state.scores[team.id]} poin`, 'info');
+        setStatus(p.id, `🏆 SELESAI · ${sorted.findIndex(t=>t.id===team.id)+1 === 1 ? '🥇' : sorted.findIndex(t=>t.id===team.id)+1 === 2 ? '🥈' : sorted.findIndex(t=>t.id===team.id)+1 === 3 ? '🥉' : '4️⃣'} #${sorted.findIndex(t=>t.id===team.id)+1}`, 'status-finished');
+      });
+
+      document.getElementById('btn-sim-start').textContent = '🔄 Simulasi Ulang';
+      document.getElementById('btn-sim-start').disabled = false;
+      document.getElementById('btn-step').disabled = true;
+      updateScoreBoard();
+    }}
+  ];
+
+  return q;
+}
+
+let simQueue = [];
+let currentDelay = 0;
+
+function runSimulation() {
+  resetSim();
+  simQueue = buildSimQueue();
+  document.getElementById('btn-sim-start').disabled = true;
+  document.getElementById('btn-step').disabled = false;
+  runNext();
+}
+
+function runNext() {
+  if (simQueue.length === 0) return;
+  const step = simQueue.shift();
+  currentDelay = step.delay;
+  setTimeout(() => {
+    step.fn();
+    runNext();
+  }, step.delay);
+}
+
+function nextStep() {
+  // Manual step — not used in auto mode
+}
+
+function resetSim() {
+  clearInterval(state.timerInterval);
+  state = {
+    phase: 'LOBBY',
+    roomCode: '',
+    timeLeft: 180,
+    itemOwnership: {},
+    scores: { red: 0, blue: 0, green: 0, yellow: 0 },
+    connected: { red: false, blue: false, green: false, yellow: false },
+    timerInterval: null,
+    simRunning: false,
+    simQueue: [],
+    simIdx: 0
+  };
+  updateTimer();
+  updatePhase();
+  updateScoreBoard();
+  initPanels();
+  document.getElementById('btn-sim-start').textContent = '▶ Mulai Simulasi Otomatis';
+  document.getElementById('btn-sim-start').disabled = false;
+  document.getElementById('btn-step').disabled = true;
+  simQueue = [];
+}
+
+// Init
+initPanels();
+updateScoreBoard();
+</script>
+</body>
+</html>
