@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <radialGradient id="realFire" cx="50%" cy="80%" r="60%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="20%" stop-color="#fff176"/>
+      <stop offset="50%" stop-color="#ff9800"/>
+      <stop offset="85%" stop-color="#e65100"/>
+      <stop offset="100%" stop-color="#b71c1c"/>
+    </radialGradient>
+
+    <filter id="fireGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#ff9800" flood-opacity="0.9"/>
+    </filter>
+  </defs>
+
+  <!-- Thick Black Toxic Smoke Column -->
+  <g opacity="0.8">
+    <circle cx="60" cy="45" r="16" fill="#424242"/>
+    <circle cx="45" cy="30" r="20" fill="#37474f"/>
+    <circle cx="70" cy="22" r="22" fill="#212121"/>
+    <circle cx="50" cy="8" r="25" fill="#1c1c1c"/>
+  </g>
+
+  <!-- Burning Plastic Heap Base -->
+  <ellipse cx="60" cy="98" rx="42" ry="14" fill="#212121"/>
+  
+  <!-- Melted Crinkled Plastic Bags -->
+  <path d="M 25 95 Q 40 82 60 90 T 95 95 Q 75 105 45 102 Z" fill="#d32f2f" opacity="0.8"/>
+  <path d="M 30 92 Q 55 80 80 88 Z" fill="#1565c0" opacity="0.7"/>
+
+  <!-- Realistic Fire Flames -->
+  <g filter="url(#fireGlow)">
+    <path d="M 35 95 Q 42 55 58 65 Q 68 35 85 95 Q 60 82 35 95 Z" fill="url(#realFire)"/>
+    <path d="M 45 95 Q 52 65 60 70 Q 66 50 75 95 Z" fill="#fff59d"/>
+  </g>
+</svg>

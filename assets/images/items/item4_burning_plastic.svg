@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <radialGradient id="fireGrad" cx="50%" cy="80%" r="60%">
+      <stop offset="0%" stop-color="#fff59d"/>
+      <stop offset="40%" stop-color="#ff9800"/>
+      <stop offset="100%" stop-color="#d32f2f"/>
+    </radialGradient>
+    <filter id="glow4">
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#ff9800" flood-opacity="0.8"/>
+    </filter>
+  </defs>
+  <!-- Toxic Smoke Column -->
+  <path d="M 45 50 Q 25 30 55 10 T 35 -20" fill="none" stroke="#616161" stroke-width="18" stroke-linecap="round" opacity="0.75"/>
+  <path d="M 50 45 Q 65 25 40 5 T 60 -25" fill="none" stroke="#9e9e9e" stroke-width="10" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Trash Heap -->
+  <ellipse cx="50" cy="80" rx="35" ry="14" fill="#3e2723"/>
+  <path d="M 20 78 Q 35 65 50 75 T 80 78 Z" fill="#ff5722"/>
+
+  <!-- Fire Flames -->
+  <g filter="url(#glow4)">
+    <path d="M 30 75 Q 40 40 50 50 Q 60 30 70 75 Q 50 65 30 75 Z" fill="url(#fireGrad)"/>
+    <path d="M 38 75 Q 45 50 50 55 Q 55 45 62 75 Z" fill="#fff59d"/>
+  </g>
+</svg>

@@ -1,0 +1,89 @@
+/* ==========================================================================
+   DETEKTIF LINGKUNGAN - ANIMATIONS & KEYFRAMES
+   ========================================================================== */
+
+/* Timer Danger Pulse Animation */
+@keyframes timerPulse {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.08); opacity: 0.8; }
+}
+
+/* Detective Lens Highlight Pulse */
+@keyframes lensGlowPulse {
+  0% {
+    box-shadow: 0 0 10px #FFD54F, 0 0 20px #FFB300;
+    border: 3px solid #FFD54F;
+    background: rgba(255, 213, 79, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 25px #FFD54F, 0 0 40px #FF6F00;
+    border: 3px solid #FFFFFF;
+    background: rgba(255, 179, 0, 0.7);
+  }
+}
+
+/* Correct Answer Red Ring Pulse */
+@keyframes correctPulseRing {
+  0% {
+    transform: scale(0.3);
+    opacity: 1;
+    border-width: 6px;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.9;
+    border-width: 4px;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+    border-width: 2px;
+  }
+}
+
+/* Wrong Answer Floating Tag Fade Up */
+@keyframes wrongTagFade {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -80%) scale(0.7);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -120%) scale(1.1);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, -140%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -160%) scale(0.9);
+  }
+}
+
+/* Slide in Toast Left */
+@keyframes slideInLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Badge Bounce In */
+@keyframes badgeBounceIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.5);
+  }
+  60% {
+    transform: translateY(10px) scale(1.15);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

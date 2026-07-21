@@ -1,0 +1,85 @@
+/* ==========================================================================
+   DETEKTIF LINGKUNGAN - BASE & LAYOUT STYLES (STORYBOOK ECO COMIC THEME)
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Fredoka:wght@500;700&family=Nunito:wght@700;900&display=swap');
+
+:root {
+  /* Warm Storybook Eco & Comic Palette */
+  --parchment-bg: #F7F3E9;
+  --parchment-card: #FFFDF7;
+  --forest-green: #2D5A27;
+  --forest-green-dark: #1E3E1B;
+  --forest-green-light: #4CAF50;
+  --honey-amber: #E8A838;
+  --honey-amber-dark: #D4881A;
+  --sky-blue: #80DEEA;
+  --terracotta-red: #C62828;
+  --ink-dark: #1C241B;
+  --ink-shadow: rgba(28, 36, 27, 0.9);
+  
+  /* Typography */
+  --font-heading: 'Fredoka', 'Comic Neue', 'Nunito', sans-serif;
+  --font-body: 'Nunito', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+html, body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #121A11;
+  font-family: var(--font-body);
+  color: var(--ink-dark);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 16:9 Responsive Container */
+.game-viewport {
+  position: relative;
+  width: 100vw;
+  height: calc(100vw * (9 / 16));
+  max-height: 100vh;
+  max-width: calc(100vh * (16 / 9));
+  background-color: var(--parchment-bg);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.6);
+  border: 4px solid var(--ink-dark);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Background Scene Layer */
+.game-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.scene-svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Canvas Confetti Layer */
+#confetti-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 900;
+}

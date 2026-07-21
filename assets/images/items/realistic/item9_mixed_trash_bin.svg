@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <filter id="shadowBin" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="3" dy="6" stdDeviation="4" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadowBin)">
+    <!-- Realistic Organic Green Trash Bin -->
+    <rect x="28" y="42" width="64" height="72" fill="#388e3c" rx="8" stroke="#1b5e20" stroke-width="3"/>
+    <rect x="20" y="32" width="80" height="15" fill="#1b5e20" rx="4"/>
+    <text x="60" y="72" font-family="'Nunito', sans-serif" font-weight="900" font-size="12" fill="#ffffff" text-anchor="middle">ORGANIK</text>
+
+    <!-- Plastic Soda Bottle & Bag Mismatched in Organic Bin -->
+    <g transform="translate(32, -8) rotate(22)">
+      <rect x="12" y="15" width="20" height="38" fill="#e0f7fa" stroke="#00bcd4" stroke-width="2.5" rx="4"/>
+      <rect x="18" y="8" width="8" height="8" fill="#e53935"/>
+    </g>
+    <path d="M 52 30 Q 70 8 88 24 Q 78 42 58 36 Z" fill="#e1bee7" stroke="#8e24aa" stroke-width="2.5"/>
+
+    <!-- Warning Alert Emblem -->
+    <circle cx="60" cy="95" r="14" fill="#ff3d00" stroke="#ffffff" stroke-width="2"/>
+    <text x="60" y="101" font-family="'Fredoka', sans-serif" font-weight="900" font-size="18" fill="#ffffff" text-anchor="middle">!</text>
+  </g>
+</svg>

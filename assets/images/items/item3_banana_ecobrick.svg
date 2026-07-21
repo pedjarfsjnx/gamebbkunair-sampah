@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <filter id="glow3">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <g filter="url(#glow3)">
+    <!-- Ecobrick Bottle Body -->
+    <rect x="30" y="35" width="40" height="60" rx="10" fill="#e0f7fa" stroke="#00acc1" stroke-width="3"/>
+    <!-- Plastic Fill -->
+    <rect x="36" y="52" width="28" height="38" fill="#81c784" rx="4"/>
+    <!-- Banana Peel Sticking Out Top -->
+    <path d="M 50 35 C 35 15 20 20 28 35 C 45 15 65 10 52 35 C 70 18 80 25 60 35 Z" fill="#ffeb3b" stroke="#f57f17" stroke-width="2.5"/>
+    <path d="M 50 35 L 50 15" stroke="#795548" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="50" cy="12" r="3" fill="#5d4037"/>
+    <!-- Danger Warning Sign -->
+    <circle cx="50" cy="68" r="10" fill="#e53935"/>
+    <text x="50" y="73" font-family="sans-serif" font-weight="900" font-size="14" fill="#ffffff" text-anchor="middle">!</text>
+  </g>
+</svg>

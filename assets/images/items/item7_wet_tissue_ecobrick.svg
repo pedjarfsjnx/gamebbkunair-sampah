@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <g>
+    <!-- Ecobrick Bottle -->
+    <rect x="30" y="35" width="40" height="60" rx="10" fill="#e0f7fa" stroke="#00acc1" stroke-width="3"/>
+    <rect x="36" y="55" width="28" height="35" fill="#90caf9" rx="4"/>
+    <!-- Soggy Wet Tissue Poking Out -->
+    <path d="M 32 35 Q 20 15 45 10 Q 75 12 68 35 Z" fill="#ffffff" stroke="#cfd8dc" stroke-width="2"/>
+    <!-- Water Drops & Mold Spots -->
+    <circle cx="38" cy="22" r="3" fill="#29b6f6"/>
+    <circle cx="58" cy="24" r="3" fill="#29b6f6"/>
+    <circle cx="48" cy="18" r="4" fill="#81c784"/>
+    <!-- Mold Alert -->
+    <circle cx="50" cy="70" r="10" fill="#7b1fa2"/>
+    <text x="50" y="75" font-family="sans-serif" font-weight="bold" font-size="14" fill="#ffffff" text-anchor="middle">!</text>
+  </g>
+</svg>

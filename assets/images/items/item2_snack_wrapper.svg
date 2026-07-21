@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="goldFoil" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffe082"/>
+      <stop offset="50%" stop-color="#ffb300"/>
+      <stop offset="100%" stop-color="#ff6f00"/>
+    </linearGradient>
+    <filter id="glow2">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <!-- Crushed Snack Bag -->
+  <g filter="url(#glow2)" transform="rotate(12 50 50)">
+    <polygon points="15,20 85,10 90,45 78,85 20,80 10,40" fill="url(#goldFoil)" stroke="#e65100" stroke-width="3" stroke-linejoin="round"/>
+    <polygon points="22,25 78,18 80,45 72,75 25,72 18,42" fill="#ffecb3" opacity="0.8"/>
+    <!-- Snack Logo -->
+    <ellipse cx="50" cy="48" rx="22" ry="14" fill="#e53935"/>
+    <text x="50" y="52" font-family="'Fredoka', sans-serif" font-weight="900" font-size="10" fill="#ffffff" text-anchor="middle">CHIPS</text>
+    <!-- Serrated Edges -->
+    <path d="M 15 20 L 22 25 L 29 20 L 36 25 L 43 20 L 50 25 L 57 20 L 64 25 L 71 20 L 78 25 L 85 10" fill="none" stroke="#e65100" stroke-width="2"/>
+  </g>
+</svg>
