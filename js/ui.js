@@ -61,7 +61,7 @@ class UIManager {
 
       const img = document.createElement('img');
       img.src = 'assets/ICON/ecobrick.png.png';
-      img.alt = 'Ecobrick Sempurna SD Siliragung';
+      img.alt = 'Ecobrick Sempurna SD Negeri 4 Siliragung';
 
       img.onerror = () => {
         if (img.src.endsWith('.png.png')) {
@@ -322,28 +322,32 @@ class UIManager {
   showVictoryPodium(leaderboard, onReplayClick) {
     const winner = leaderboard[0];
     let podiumHTML = `
-      <p style="font-size: 1.1rem; margin-bottom: 10px;"><strong>Pertandingan Multi-Laptop Selesai!</strong></p>
-      <h3 style="color: ${winner.color}; font-size: 1.6rem; margin-bottom: 15px;">🎉 Selamat untuk ${winner.badge} ${winner.name}!</h3>
+      <div style="background: #FFF9C4; padding: 10px; border-radius: 14px; border: 2.5px solid var(--ink-dark); margin-bottom: 12px; text-align: center;">
+        <span style="font-size: 0.8rem; font-weight: 800; color: #E65100;">🎓 KKN BBK 8 UNIVERSITAS AIRLANGGA - DESA SILIRAGUNG</span>
+        <h3 style="color: ${winner.color}; font-size: 1.6rem; margin: 4px 0;">🎉 Selamat untuk ${winner.badge} ${winner.name}!</h3>
+        <p style="font-size: 0.9rem; color: #444; font-weight: 700;">Juara Detektif Lingkungan SD Negeri 4 Siliragung!</p>
+      </div>
       <div class="podium-container">
     `;
 
     leaderboard.forEach((team, idx) => {
       const rankNum = idx + 1;
+      const medal = rankNum === 1 ? '🥇 #1' : rankNum === 2 ? '🥈 #2' : rankNum === 3 ? '🥉 #3' : '#' + rankNum;
       podiumHTML += `
         <div class="podium-card rank-${rankNum}">
-          <div class="podium-rank-num">#${rankNum}</div>
-          <div>${team.badge}</div>
+          <div class="podium-rank-num">${medal}</div>
+          <div style="font-size: 1.8rem; margin: 4px 0;">${team.badge}</div>
           <div class="podium-team-name">${team.name}</div>
-          <div class="podium-score">⭐ ${team.score}</div>
+          <div class="podium-score">⭐ ${team.score} Poin</div>
         </div>
       `;
     });
 
-    podiumHTML += `</div><p style="margin-top: 15px;">Semua tim hebat telah belajar pentingnya Ecobrick dan menjaga lingkungan sekolah!</p>`;
+    podiumHTML += `</div><p style="margin-top: 14px; font-weight: 700; color: #2E7D32; text-align: center;">Semua tim hebat telah belajar pentingnya memilah sampah dan membuat Ecobrick!</p>`;
 
     this.showModal({
       icon: "🏆",
-      title: "Panggung Juara Detektif",
+      title: "Sertifikat Panggung Juara",
       bodyHTML: podiumHTML,
       buttonText: "🔄 Main Lagi / Reset Misi",
       onButtonClick: onReplayClick

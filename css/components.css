@@ -501,6 +501,43 @@
   font-weight: 900;
 }
 
+.btn-timer-dur {
+  background: #FFFFFF;
+  border: 2.5px solid var(--ink-dark);
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink-dark);
+  cursor: pointer;
+  box-shadow: 3px 3px 0px var(--ink-dark);
+  transition: all 0.2s ease;
+}
+
+.btn-timer-dur:hover {
+  transform: translateY(-2px);
+  box-shadow: 4px 4px 0px var(--ink-dark);
+  background: #E8F5E9;
+}
+
+.btn-timer-dur.selected {
+  background: var(--forest-green);
+  color: #FFFFFF;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 5px 5px 0px var(--ink-dark);
+  border-color: var(--ink-dark);
+  font-weight: 900;
+}
+
+.team-select-btn.taken-disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+  border-style: dashed !important;
+}
+
 /* Player Join - Room Input & Team Selection Grid */
 .room-input-container {
   margin: 12px 0 16px 0;

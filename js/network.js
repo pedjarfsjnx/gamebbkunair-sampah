@@ -1,6 +1,6 @@
 /**
  * Multi-Laptop Real-Time Network Engine (network.js)
- * Mengelola sinkronisasi realtime antar LAPTOP via BroadcastChannel, LocalStorage Sync & PeerJS WebRTC P2P.
+ * Mengelola sinkronisasi realtime antar LAPTOP di jaringan Wi-Fi lokal via WebSocket Server, BroadcastChannel, LocalStorage Sync & PeerJS WebRTC P2P.
  * Dilengkapi dengan Anti-Duplicate Message Deduplication & Auto Sender Filter Engine.
  */
 
@@ -10,11 +10,52 @@ class NetworkEngine {
     this.peer = null;
     this.connections = [];
     this.hostConn = null;
+    this.socket = null;
     this.listeners = [];
     
     // Unique Client Session Identifier
     this.clientId = 'client_' + Math.random().toString(36).substr(2, 9);
     this.processedMsgIds = new Set();
+
+    // Auto connect Local Wi-Fi WebSocket Server
+    this.initWebSocket();
+  }
+
+  // Auto connect Local Wi-Fi WebSocket Server (Ultra low-latency multi-device sync)
+  initWebSocket() {
+    if (typeof location === 'undefined' || !location.host) return;
+
+    try {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${location.host}`;
+      
+      if (this.socket) {
+        try { this.socket.close(); } catch(e) {}
+      }
+
+      this.socket = new WebSocket(wsUrl);
+
+      this.socket.onopen = () => {
+        console.log("⚡ Realtime Local Server WebSocket Connected:", wsUrl);
+      };
+
+      this.socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          this.handleIncomingMessage(data);
+        } catch (e) {}
+      };
+
+      this.socket.onerror = () => {
+        console.warn("WebSocket Error (Using BroadcastChannel / PeerJS Fallbacks)");
+      };
+
+      this.socket.onclose = () => {
+        setTimeout(() => this.initWebSocket(), 3000);
+      };
+    } catch (e) {
+      console.warn("WebSocket init exception:", e);
+    }
   }
 
   // Inisialisasi room channel berdasarkan Kode Ruangan (misal: SILIR-88)
@@ -43,7 +84,7 @@ class NetworkEngine {
   // Host: Buat Room P2P PeerJS
   createHostPeer(roomCode, onPeerReady) {
     if (typeof Peer === 'undefined') {
-      console.log("PeerJS fallback to BroadcastChannel/LocalSync engine.");
+      console.log("PeerJS fallback to WebSocket/LocalSync engine.");
       if (onPeerReady) onPeerReady(roomCode);
       return;
     }
@@ -77,7 +118,7 @@ class NetworkEngine {
       });
 
       this.peer.on('error', (err) => {
-        console.warn("PeerJS Host Warning (Using Local Sync Engine):", err.type);
+        console.warn("PeerJS Host Warning (Using Local WebSocket Sync):", err.type);
         if (onPeerReady) onPeerReady(roomCode);
       });
     } catch (e) {
@@ -116,14 +157,14 @@ class NetworkEngine {
       });
 
       this.peer.on('error', () => {
-        if (onConnected) onConnected(true); // Fallback to local channel
+        if (onConnected) onConnected(true); // Fallback to local channel / WebSocket
       });
     } catch (e) {
       if (onConnected) onConnected(true);
     }
   }
 
-  // Broadcast pesan realtime ke seluruh LAPTOP yang terhubung
+  // Broadcast pesan realtime ke seluruh LAPTOP yang terhubung di jaringan Wi-Fi
   broadcast(actionType, payload = {}) {
     const msgId = `${this.clientId}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     
@@ -139,19 +180,26 @@ class NetworkEngine {
     // Mark as locally processed so we don't re-handle own broadcast echo
     this.processedMsgIds.add(msgId);
 
-    // 1. BroadcastChannel (Seketika antar tab/jendela di laptop sama/jaringan lokal)
+    // 1. WebSocket Broadcast (Multi-Laptop di Jaringan Wi-Fi Lokal)
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      try {
+        this.socket.send(JSON.stringify(message));
+      } catch (e) {}
+    }
+
+    // 2. BroadcastChannel (Seketika antar tab/jendela di laptop sama/jaringan lokal)
     if (this.broadcastChannel) {
       this.broadcastChannel.postMessage(message);
     }
 
-    // 2. LocalStorage Sync (Multi-tab/window sync fallback)
+    // 3. LocalStorage Sync (Multi-tab/window sync fallback)
     try {
       if (gameState.roomCode) {
         localStorage.setItem(`ecobrick_event_${gameState.roomCode}`, JSON.stringify(message));
       }
     } catch (e) {}
 
-    // 3. PeerJS WebRTC P2P Sync (Antar Laptop Berbeda)
+    // 4. PeerJS WebRTC P2P Sync (Antar Laptop Berbeda via WebRTC)
     if (gameState.role === 'HOST') {
       this.connections.forEach(conn => {
         if (conn.open) conn.send(message);
@@ -167,6 +215,11 @@ class NetworkEngine {
 
   handleIncomingMessage(data) {
     if (!data || !data.type) return;
+
+    // Filter by Room Code if present
+    if (data.roomCode && gameState.roomCode && data.roomCode !== gameState.roomCode) {
+      return;
+    }
 
     // Reject self-sent messages
     if (data.senderId === this.clientId) return;

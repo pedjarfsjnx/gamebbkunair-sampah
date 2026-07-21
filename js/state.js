@@ -39,6 +39,12 @@ class GameState {
     this.lensUsed = false;
   }
 
+  // Set Durasi Timer Pertandingan (180s = 3m, 300s = 5m, 9999s = Tanpa Batas)
+  setTimerDuration(seconds) {
+    this.maxTimeSeconds = seconds;
+    this.timeLeft = seconds;
+  }
+
   markTeamConnected(teamId, isConnected = true) {
     if (this.teamConnections.hasOwnProperty(teamId)) {
       this.teamConnections[teamId] = isConnected;

@@ -1,15 +1,17 @@
 /**
  * Multi-Laptop Game Controller (app.js)
  * Host Proyektor Guru (Spectator Mode) vs Player Controller (Laptop Siswa)
- * Mengontrol alur Pembuatan Room Host, Indikator Real-Time Tim Joined, Spectator Display,
- * Realtime WebRTC/P2P Claim, Sync Timer, dan Victory Podium.
+ * Mengontrol alur Pembuatan Room Host, Indikator Real-Time Tim Joined, Spectator Display & Host Controls,
+ * Realtime WebRTC/P2P Claim, Sync Timer, 1 Laptop = 1 Tim Enforcement, dan Victory Podium.
  */
 
 class AppController {
   constructor() {
     this.timerInterval = null;
     this.selectedTeamCount = 2;
+    this.selectedTimerDuration = 180; // Default 3 Menit
     this.autoResumeTimeout = null;
+    this.isWrongClickCooldown = false;
   }
 
   init() {
@@ -61,7 +63,7 @@ class AppController {
           <span style="font-size: 2.2rem;">🎮</span>
           <div>
             <div><strong>Masuk Ruangan (Laptop Pemain / Siswa)</strong></div>
-            <div style="font-size: 0.85rem; opacity: 0.8; font-weight: normal;">Untuk Laptop Siswa yang ingin bergabung untuk menjawab/bermain.</div>
+            <div style="font-size: 0.85rem; opacity: 0.8; font-weight: normal;">Untuk Laptop Siswa (1 Laptop Mewakili 1 Tim Siswa).</div>
           </div>
         </button>
       </div>
@@ -94,6 +96,7 @@ class AppController {
     gameState.role = 'HOST';
     const roomCode = gameState.generateRoomCode();
     gameState.setupTeams(this.selectedTeamCount);
+    gameState.setTimerDuration(this.selectedTimerDuration);
     networkEngine.initRoomChannel(roomCode);
 
     uiManager.renderRoomCodeBanner(roomCode);
@@ -106,7 +109,7 @@ class AppController {
     this.renderHostLobbyModal(roomCode);
   }
 
-  // Render Host Lobby Modal dengan Indikator Tim Joined Real-Time
+  // Render Host Lobby Modal dengan Indikator Tim Joined & Timer Selector Real-Time
   renderHostLobbyModal(roomCode) {
     let teamStatusHTML = '';
     gameState.teams.forEach(team => {
@@ -132,11 +135,24 @@ class AppController {
         <span style="font-size: 0.85rem; color: #444;">Tampilkan kode ini di proyektor agar laptop siswa dapat bergabung!</span>
       </div>
 
-      <p style="margin-top: 10px; font-weight: 700;">Pilih Jumlah Tim Pertandingan:</p>
-      <div class="lobby-team-selector">
-        <button class="btn-team-count ${this.selectedTeamCount === 2 ? 'selected' : ''}" data-count="2">2 Tim (🔴 vs 🔵)</button>
-        <button class="btn-team-count ${this.selectedTeamCount === 3 ? 'selected' : ''}" data-count="3">3 Tim (🔴 🔵 🟢)</button>
-        <button class="btn-team-count ${this.selectedTeamCount === 4 ? 'selected' : ''}" data-count="4">4 Tim (🔴 🔵 🟢 🟡)</button>
+      <div style="display: flex; gap: 14px; flex-wrap: wrap; justify-content: space-between;">
+        <div style="flex: 1; min-width: 200px;">
+          <p style="font-weight: 700; margin-bottom: 6px;">Pilih Jumlah Tim:</p>
+          <div class="lobby-team-selector">
+            <button class="btn-team-count ${this.selectedTeamCount === 2 ? 'selected' : ''}" data-count="2">2 Tim</button>
+            <button class="btn-team-count ${this.selectedTeamCount === 3 ? 'selected' : ''}" data-count="3">3 Tim</button>
+            <button class="btn-team-count ${this.selectedTeamCount === 4 ? 'selected' : ''}" data-count="4">4 Tim</button>
+          </div>
+        </div>
+
+        <div style="flex: 1; min-width: 200px;">
+          <p style="font-weight: 700; margin-bottom: 6px;">Durasi Timer Misi:</p>
+          <div class="lobby-team-selector">
+            <button class="btn-timer-dur ${this.selectedTimerDuration === 180 ? 'selected' : ''}" data-time="180">⏱️ 3 Menit</button>
+            <button class="btn-timer-dur ${this.selectedTimerDuration === 300 ? 'selected' : ''}" data-time="300">⏱️ 5 Menit</button>
+            <button class="btn-timer-dur ${this.selectedTimerDuration === 9999 ? 'selected' : ''}" data-time="9999">♾️ Bebas</button>
+          </div>
+        </div>
       </div>
 
       <p style="margin-top: 14px; font-weight: 700;">Status Koneksi Laptop Siswa (Real-Time):</p>
@@ -157,6 +173,8 @@ class AppController {
           return;
         }
 
+        gameState.setTimerDuration(this.selectedTimerDuration);
+
         this.startGame();
         networkEngine.broadcast('START_GAME', { 
           teamCount: this.selectedTeamCount, 
@@ -167,37 +185,72 @@ class AppController {
       }
     });
 
-    // Disable action button if no players joined yet
     if (uiManager.modalActionBtn) {
       uiManager.modalActionBtn.disabled = !hasPlayers;
     }
 
-    // Bind Team Count Pills
+    // Bind Controls
     setTimeout(() => {
-      const btns = document.querySelectorAll('.btn-team-count');
-      btns.forEach(btn => {
+      const btnsCount = document.querySelectorAll('.btn-team-count');
+      btnsCount.forEach(btn => {
         btn.onclick = (e) => {
-          btns.forEach(b => b.classList.remove('selected'));
+          btnsCount.forEach(b => b.classList.remove('selected'));
           e.currentTarget.classList.add('selected');
           this.selectedTeamCount = parseInt(e.currentTarget.getAttribute('data-count')) || 2;
           gameState.setupTeams(this.selectedTeamCount);
-          
-          networkEngine.broadcast('ROOM_STATE', {
-            roomCode: roomCode,
-            teamCount: this.selectedTeamCount,
-            teams: gameState.teams,
-            teamConnections: gameState.teamConnections
-          });
-
+          this.broadcastRoomState();
           this.renderHostLobbyModal(roomCode);
+        };
+      });
+
+      const btnsTime = document.querySelectorAll('.btn-timer-dur');
+      btnsTime.forEach(btn => {
+        btn.onclick = (e) => {
+          btnsTime.forEach(b => b.classList.remove('selected'));
+          e.currentTarget.classList.add('selected');
+          this.selectedTimerDuration = parseInt(e.currentTarget.getAttribute('data-time')) || 180;
+          gameState.setTimerDuration(this.selectedTimerDuration);
+          this.broadcastRoomState();
         };
       });
     }, 100);
   }
 
+  broadcastRoomState() {
+    networkEngine.broadcast('ROOM_STATE', {
+      roomCode: gameState.roomCode,
+      teamCount: gameState.activeTeamsCount,
+      teams: gameState.teams,
+      teamConnections: gameState.teamConnections,
+      timeLeft: gameState.maxTimeSeconds
+    });
+  }
+
   // Setup Role PLAYER (Laptop Siswa - PLAYER CONTROLLER MODE)
   setupPlayerJoin() {
     gameState.role = 'PLAYER';
+
+    // 1 Laptop = 1 Tim Enforcement
+    let teamSelectHTML = '';
+    const presets = [
+      { id: 'team-red', name: '🔴 Tim Merah', color: '#FFEBEE', textColor: '#C62828' },
+      { id: 'team-blue', name: '🔵 Tim Biru', color: '#E3F2FD', textColor: '#1565C0' },
+      { id: 'team-green', name: '🟢 Tim Hijau', color: '#E8F5E9', textColor: '#2E7D32' },
+      { id: 'team-yellow', name: '🟡 Tim Kuning', color: '#FFFDE7', textColor: '#F57F17' }
+    ];
+
+    presets.forEach((t, idx) => {
+      const isTaken = gameState.teamConnections[t.id];
+      const isSelected = (gameState.myTeamId === t.id && !isTaken) || (idx === 0 && !isTaken);
+      teamSelectHTML += `
+        <button class="team-select-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken-disabled' : ''}" 
+                data-team="${t.id}" 
+                ${isTaken ? 'disabled' : ''} 
+                style="background: ${isTaken ? '#CFD8DC' : t.color}; color: ${isTaken ? '#78909C' : t.textColor};">
+          ${t.name} ${isTaken ? '(Sudah Diambil)' : ''}
+        </button>
+      `;
+    });
 
     const playerHTML = `
       <p>Masukkan Kode Ruangan yang tampil di layar Proyektor Host Guru:</p>
@@ -206,12 +259,9 @@ class AppController {
         <input type="text" id="input-room-code" class="room-input-field" placeholder="SILIR-XXXX" maxlength="10" value="${gameState.roomCode || ''}">
       </div>
 
-      <p style="margin-top: 10px; font-weight: 700;">Pilih Tim Laptop Ini:</p>
+      <p style="margin-top: 10px; font-weight: 700;">Pilih Tim Laptop Ini (1 Laptop Mewakili 1 Tim):</p>
       <div class="team-select-grid" id="team-select-grid">
-        <button class="team-select-btn selected" data-team="team-red" style="background: #FFEBEE; color: #C62828;">🔴 Tim Merah</button>
-        <button class="team-select-btn" data-team="team-blue" style="background: #E3F2FD; color: #1565C0;">🔵 Tim Biru</button>
-        <button class="team-select-btn" data-team="team-green" style="background: #E8F5E9; color: #2E7D32;">🟢 Tim Hijau</button>
-        <button class="team-select-btn" data-team="team-yellow" style="background: #FFFDE7; color: #F57F17;">🟡 Tim Kuning</button>
+        ${teamSelectHTML}
       </div>
     `;
 
@@ -256,7 +306,7 @@ class AppController {
     });
 
     setTimeout(() => {
-      const teamBtns = document.querySelectorAll('.team-select-btn');
+      const teamBtns = document.querySelectorAll('.team-select-btn:not(.taken-disabled)');
       teamBtns.forEach(btn => {
         btn.onclick = (e) => {
           teamBtns.forEach(b => b.classList.remove('selected'));
@@ -318,7 +368,9 @@ class AppController {
     this.timerInterval = setInterval(() => {
       if (gameState.phase !== 'PLAYING') return;
 
-      gameState.timeLeft--;
+      if (gameState.timeLeft < 9000) {
+        gameState.timeLeft--;
+      }
       gameState.inactivitySeconds++;
 
       uiManager.updateTimerDisplay(gameState.timeLeft);
@@ -368,6 +420,9 @@ class AppController {
       uiManager.showHintToast('🖥️ Layar Proyektor Host (Mode Spectator - Siswa menjawab dari Laptop Pemain)');
       return;
     }
+
+    // Jika sedang cooldown klik salah, abaikan
+    if (this.isWrongClickCooldown) return;
 
     // Jika sudah diklaim tim lain, abaikan
     if (gameState.isClaimed(item.id)) return;
@@ -464,12 +519,16 @@ class AppController {
     }
   }
 
-  // Handler Klik Salah pada Background
+  // Handler Klik Salah pada Background (dengan 1.5 detik Anti-Spam Cooldown Penalty)
   handleBackgroundClick(event) {
     if (gameState.phase !== 'PLAYING') return;
 
     // SPECTATOR MODE GUARD for Host Proyektor
     if (gameState.role === 'HOST') return;
+
+    // Anti-Spam Click Lock (1.5s Cooldown)
+    if (this.isWrongClickCooldown) return;
+    this.isWrongClickCooldown = true;
 
     const rect = uiManager.viewport.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -477,6 +536,10 @@ class AppController {
 
     soundEngine.playWrong();
     uiManager.showWrongTag(x, y);
+
+    setTimeout(() => {
+      this.isWrongClickCooldown = false;
+    }, 1500);
   }
 
   // Handler Lensa Detektif
@@ -554,12 +617,26 @@ class AppController {
           if (data.payload.lensUsed) {
             gameState.lensUsed = true;
           }
+          if (data.payload.timeLeft) {
+            gameState.timeLeft = data.payload.timeLeft;
+          }
           uiManager.updateHeader();
           uiManager.renderHotspots(MISTAKES_DATA, (item, e) => this.handleHitspotClick(item, e));
 
+          // Refresh Player Join UI if still in player selection modal
+          if (gameState.phase === 'LOBBY') {
+            const teamBtns = document.querySelectorAll('.team-select-btn');
+            teamBtns.forEach(btn => {
+              const tid = btn.getAttribute('data-team');
+              if (gameState.teamConnections[tid] && gameState.myTeamId !== tid) {
+                btn.classList.add('taken-disabled');
+                btn.disabled = true;
+              }
+            });
+          }
+
           // If host is already PLAYING, transition late-joining player into game!
           if (data.payload.phase === 'PLAYING' && gameState.phase !== 'PLAYING') {
-            if (data.payload.timeLeft) gameState.timeLeft = data.payload.timeLeft;
             this.startGame();
           }
         }
