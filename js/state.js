@@ -59,6 +59,7 @@ class GameState {
   resetRound() {
     this.phase = 'PLAYING';
     this.itemOwnership = {};
+    this.firstClaimTime = {}; // Reset waktu klaim pertama per tim
     this.timeLeft = this.maxTimeSeconds;
     this.inactivitySeconds = 0;
     this.hintsGiven = 0;
@@ -76,6 +77,7 @@ class GameState {
       ...t,
       score: 0
     }));
+    this.firstClaimTime = {}; // { teamId: timestamp ms } — waktu berhasil klaim pertama kali
   }
 
   // Hasilkan Kode Ruangan acak (4 huruf/angka)
@@ -120,6 +122,11 @@ class GameState {
       const team = this.teams.find(t => t.id === teamId);
       if (team) {
         team.score++;
+        // Catat waktu klaim PERTAMA tim ini (dipakai sebagai tiebreaker skor sama)
+        if (!this.firstClaimTime) this.firstClaimTime = {};
+        if (this.firstClaimTime[teamId] === undefined) {
+          this.firstClaimTime[teamId] = Date.now();
+        }
       }
       this.inactivitySeconds = 0;
       return true;
@@ -132,9 +139,17 @@ class GameState {
     this.currentTeamIndex = (this.currentTeamIndex + 1) % this.teams.length;
   }
 
-  // Ambil leaderboard peringkat tim (diurutkan dari skor tertinggi)
+  // Ambil leaderboard peringkat tim
+  // Tiebreaker: skor sama → yang lebih duluan klaim item pertamanya menang
   getLeaderboard() {
-    return [...this.teams].sort((a, b) => b.score - a.score);
+    const firstClaim = this.firstClaimTime || {};
+    return [...this.teams].sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score; // Skor lebih tinggi dulu
+      // Skor sama → yang lebih duluan klaim menang (timestamp lebih kecil = lebih awal)
+      const tA = firstClaim[a.id] ?? Infinity;
+      const tB = firstClaim[b.id] ?? Infinity;
+      return tA - tB;
+    });
   }
 
   useLens() {

@@ -650,17 +650,30 @@ function buildSimQueue() {
       });
     }},
 
-    // Victory!
+    // Victory! — Sort dengan tiebreaker: skor sama → yang duluan klaim menang
     { delay: 11000, fn: () => {
       state.phase = 'FINISHED';
       updatePhase();
       clearInterval(state.timerInterval);
 
-      const sorted = [...TEAMS].sort((a,b) => state.scores[b.id] - state.scores[a.id]);
+      const firstClaim = state.firstClaimTime || {};
+      const sorted = [...TEAMS].sort((a, b) => {
+        if (state.scores[b.id] !== state.scores[a.id]) return state.scores[b.id] - state.scores[a.id];
+        // Tiebreaker: yang lebih duluan dapat klaim pertama menang
+        const tA = firstClaim[a.id] ?? Infinity;
+        const tB = firstClaim[b.id] ?? Infinity;
+        return tA - tB;
+      });
       const winner = sorted[0];
+
+      // Cek apakah ada skor yang seri
+      const hasTie = sorted.some((t, i) => i > 0 && state.scores[t.id] === state.scores[sorted[0].id]);
 
       highlight('host');
       log('host', '🎉 SEMUA 10 ITEM TERKLAIM! GAME SELESAI!', 'success');
+      if (hasTie) {
+        log('host', `⚡ SKOR SERI TERDETEKSI! Tiebreaker: siapa duluan dapat klaim pertama`, 'warning');
+      }
       log('host', `🏆 PEMENANG: ${winner.badge} ${winner.name} dengan ⭐ ${state.scores[winner.id]} poin!`, 'success');
       log('host', '🎓 Sertifikat Panggung Juara tampil di proyektor!', 'success');
       log('host', '📝 KKN BBK 8 UNIVERSITAS AIRLANGGA - DESA SILIRAGUNG', 'info');
@@ -668,10 +681,16 @@ function buildSimQueue() {
 
       PANELS.filter(p => p.role === 'PLAYER').forEach((p, i) => {
         const team = TEAMS[i];
+        const rank = sorted.findIndex(t => t.id === team.id) + 1;
+        const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '4️⃣';
+        const isTiedWithWinner = rank > 1 && state.scores[team.id] === state.scores[winner.id];
         log(p.id, '🎉 Semua item ditemukan! Game selesai!', 'success');
+        if (isTiedWithWinner) {
+          log(p.id, `⚡ Skor seri! Kalah karena klaim pertamamu lebih telat`, 'warning');
+        }
         log(p.id, `🏆 Pemenang: ${winner.badge} ${winner.name}!`, 'success');
-        log(p.id, `📊 Skormu: ⭐ ${state.scores[team.id]} poin`, 'info');
-        setStatus(p.id, `🏆 SELESAI · ${sorted.findIndex(t=>t.id===team.id)+1 === 1 ? '🥇' : sorted.findIndex(t=>t.id===team.id)+1 === 2 ? '🥈' : sorted.findIndex(t=>t.id===team.id)+1 === 3 ? '🥉' : '4️⃣'} #${sorted.findIndex(t=>t.id===team.id)+1}`, 'status-finished');
+        log(p.id, `📊 Skormu: ⭐ ${state.scores[team.id]} poin | Peringkat: ${medal} #${rank}`, 'info');
+        setStatus(p.id, `🏆 SELESAI · ${medal} #${rank}`, 'status-finished');
       });
 
       document.getElementById('btn-sim-start').textContent = '🔄 Simulasi Ulang';
@@ -718,6 +737,7 @@ function resetSim() {
     itemOwnership: {},
     scores: { red: 0, blue: 0, green: 0, yellow: 0 },
     connected: { red: false, blue: false, green: false, yellow: false },
+    firstClaimTime: {}, // waktu klaim pertama per tim
     timerInterval: null,
     simRunning: false,
     simQueue: [],

@@ -330,20 +330,29 @@ class UIManager {
       <div class="podium-container">
     `;
 
+    // Check if there is a tie score
+    const hasTie = leaderboard.some((t, i) => i > 0 && t.score === leaderboard[0].score && t.score > 0);
+
     leaderboard.forEach((team, idx) => {
       const rankNum = idx + 1;
       const medal = rankNum === 1 ? '🥇 #1' : rankNum === 2 ? '🥈 #2' : rankNum === 3 ? '🥉 #3' : '#' + rankNum;
+      const isTieWinner = idx === 0 && hasTie;
       podiumHTML += `
         <div class="podium-card rank-${rankNum}">
           <div class="podium-rank-num">${medal}</div>
           <div style="font-size: 1.8rem; margin: 4px 0;">${team.badge}</div>
           <div class="podium-team-name">${team.name}</div>
           <div class="podium-score">⭐ ${team.score} Poin</div>
+          ${isTieWinner ? '<div style="font-size: 0.7rem; color: #D84315; font-weight: 800; margin-top: 2px;">⚡ Menang kecepatan klaim pertama!</div>' : ''}
         </div>
       `;
     });
 
-    podiumHTML += `</div><p style="margin-top: 14px; font-weight: 700; color: #2E7D32; text-align: center;">Semua tim hebat telah belajar pentingnya memilah sampah dan membuat Ecobrick!</p>`;
+    if (hasTie) {
+      podiumHTML += `</div><p style="margin-top: 10px; font-weight: 700; color: #D84315; text-align: center; font-size: 0.85rem;">⚡ Aturan Skor Seri: Tim yang lebih cepat mendapatkan poin pertama menjadi Pemenang!</p>`;
+    } else {
+      podiumHTML += `</div><p style="margin-top: 14px; font-weight: 700; color: #2E7D32; text-align: center;">Semua tim hebat telah belajar pentingnya memilah sampah dan membuat Ecobrick!</p>`;
+    }
 
     this.showModal({
       icon: "🏆",

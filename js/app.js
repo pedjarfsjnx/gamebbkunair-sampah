@@ -490,11 +490,13 @@ class AppController {
       uiManager.updateHeader();
 
       // HOST: Re-broadcast state final ke semua 4 player (authority confirmation)
+      // Sertakan firstClaimTime agar tiebreaker skor sama konsisten di semua laptop
       networkEngine.broadcast('CONFIRM_CLAIM_ITEM', {
         itemId: itemId,
         teamId: teamId,
         teams: gameState.teams,
-        itemOwnership: gameState.itemOwnership
+        itemOwnership: gameState.itemOwnership,
+        firstClaimTime: gameState.firstClaimTime || {}
       });
     }
 
@@ -705,7 +707,8 @@ class AppController {
       }
 
       case 'CONFIRM_CLAIM_ITEM':
-        // [FIX-1] Host authority state correction broadcast to all 4 players
+        // Host authority state correction broadcast to all 4 players
+        // Termasuk firstClaimTime untuk tiebreaker skor sama yang konsisten
         if (gameState.role === 'PLAYER') {
           if (data.payload.itemOwnership) {
             gameState.itemOwnership = { ...data.payload.itemOwnership };
@@ -715,6 +718,10 @@ class AppController {
               const localT = gameState.teams.find(lt => lt.id === t.id);
               if (localT) localT.score = t.score;
             });
+          }
+          // Sync firstClaimTime dari Host (sumber kebenaran tiebreaker)
+          if (data.payload.firstClaimTime) {
+            gameState.firstClaimTime = { ...data.payload.firstClaimTime };
           }
           uiManager.updateHeader();
           uiManager.renderHotspots(MISTAKES_DATA, (item, e) => this.handleHitspotClick(item, e));
