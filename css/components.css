@@ -654,3 +654,72 @@
   filter: drop-shadow(2px 3px 0px var(--ink-dark));
 }
 
+/* ==========================================================================
+   HOST LOBBY LIVE TEAM INDICATORS & SPECTATOR STYLES
+   ========================================================================== */
+.host-lobby-team-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 14px 0;
+  text-align: left;
+}
+
+.team-status-card {
+  background: #FFFFFF;
+  border: 2.5px solid var(--ink-dark);
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 3px 3px 0px var(--ink-dark);
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+}
+
+.badge-status-waiting {
+  background: #FFF9C4;
+  color: #E65100;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  border: 1.5px solid var(--ink-dark);
+  animation: timerPulse 1.2s infinite alternate;
+}
+
+.badge-status-connected {
+  background: #E8F5E9;
+  color: #2E7D32;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  border: 1.5px solid var(--ink-dark);
+}
+
+.btn-action-primary:disabled {
+  background: #B0BEC5 !important;
+  color: #546E7A !important;
+  border-color: #546E7A !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+/* SPECTATOR MODE HEADER TAG */
+.spectator-header-tag {
+  background: #D32F2F;
+  color: #FFFFFF;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 900;
+  border: 1.5px solid #1C241B;
+  box-shadow: 2px 2px 0px #1C241B;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+

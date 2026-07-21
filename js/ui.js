@@ -141,11 +141,18 @@ class UIManager {
   updateHeader() {
     if (this.teamScorecardsContainer) {
       this.teamScorecardsContainer.innerHTML = '';
+
+      if (gameState.role === 'HOST') {
+        const tag = document.createElement('div');
+        tag.className = 'spectator-header-tag';
+        tag.innerHTML = '🖥️ LAYAR PROYEKTOR GURU (SPECTATOR)';
+        this.teamScorecardsContainer.appendChild(tag);
+      }
+
       gameState.teams.forEach((team, idx) => {
         const isMyTeam = (gameState.role === 'PLAYER' && team.id === gameState.myTeamId);
-        const isActiveTurn = (gameState.role === 'HOST' && idx === gameState.currentTeamIndex);
         const card = document.createElement('div');
-        card.className = `team-score-card ${isActiveTurn || isMyTeam ? 'active-turn' : ''}`;
+        card.className = `team-score-card ${isMyTeam ? 'active-turn' : ''}`;
         card.style.border = `3px solid ${team.color}`;
         card.innerHTML = `
           <span class="team-badge-icon">${team.badge}</span>

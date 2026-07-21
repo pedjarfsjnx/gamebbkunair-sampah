@@ -29,6 +29,7 @@ class GameState {
     
     this.activeTeamsCount = 2; // Default 2 Tim (Dapat dipilih 2, 3, atau 4 tim)
     this.teams = [];
+    this.teamConnections = { 'team-red': false, 'team-blue': false, 'team-green': false, 'team-yellow': false };
     this.currentTeamIndex = 0; // Tim yang aktif memilih di 1 layar
     this.itemOwnership = {}; // Map { itemId: teamId } misal { 1: 'team-red', 3: 'team-green' }
     
@@ -36,6 +37,16 @@ class GameState {
     this.inactivitySeconds = 0;
     this.hintsGiven = 0;
     this.lensUsed = false;
+  }
+
+  markTeamConnected(teamId, isConnected = true) {
+    if (this.teamConnections.hasOwnProperty(teamId)) {
+      this.teamConnections[teamId] = isConnected;
+    }
+  }
+
+  hasAnyPlayerJoined() {
+    return this.teams.some(t => this.teamConnections[t.id] === true);
   }
 
   // Reset ronde pertandingan baru tanpa menghapus room code atau tim

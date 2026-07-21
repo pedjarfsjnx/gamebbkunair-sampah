@@ -1,7 +1,8 @@
 /**
  * Multi-Laptop Game Controller (app.js)
- * Mengontrol alur Host Proyektor vs Player Controller, pembuatan Kode Ruangan,
- * Realtime WebRTC/Broadcast P2P claim, synchronization timer, dan victory podium.
+ * Host Proyektor Guru (Spectator Mode) vs Player Controller (Laptop Siswa)
+ * Mengontrol alur Pembuatan Room Host, Indikator Real-Time Tim Joined, Spectator Display,
+ * Realtime WebRTC/P2P Claim, Sync Timer, dan Victory Podium.
  */
 
 class AppController {
@@ -41,7 +42,7 @@ class AppController {
     this.showRoleSelectionModal();
   }
 
-  // Step 1: Role Selection Modal (Host Proyektor vs Laptop Pemain)
+  // Step 1: Role Selection Modal (Host Proyektor Guru vs Laptop Pemain Siswa)
   showRoleSelectionModal() {
     const roleHTML = `
       <p><strong>Selamat Datang di Multi-Laptop Online Room System!</strong></p>
@@ -49,18 +50,18 @@ class AppController {
       
       <div class="role-selector-box">
         <button id="btn-role-host" class="btn-role-option">
-          <span style="font-size: 2rem;">🖥️</span>
+          <span style="font-size: 2.2rem;">🖥️</span>
           <div>
-            <div><strong>Buat Ruangan Proyektor (Host)</strong></div>
-            <div style="font-size: 0.85rem; opacity: 0.8; font-weight: normal;">Untuk Laptop Guru yang disambung ke Proyektor Kelas.</div>
+            <div><strong>Buat Ruangan Proyektor (Host Guru)</strong></div>
+            <div style="font-size: 0.85rem; opacity: 0.8; font-weight: normal;">Untuk Laptop Guru yang disambung ke Proyektor Kelas (Spectator Display).</div>
           </div>
         </button>
 
         <button id="btn-role-player" class="btn-role-option">
-          <span style="font-size: 2rem;">🎮</span>
+          <span style="font-size: 2.2rem;">🎮</span>
           <div>
             <div><strong>Masuk Ruangan (Laptop Pemain / Siswa)</strong></div>
-            <div style="font-size: 0.85rem; opacity: 0.8; font-weight: normal;">Untuk Laptop Siswa yang ingin bergabung dengan Kode Ruangan.</div>
+            <div style="font-size: 0.85rem; opacity: 0.8; font-weight: normal;">Untuk Laptop Siswa yang ingin bergabung untuk menjawab/bermain.</div>
           </div>
         </button>
       </div>
@@ -70,7 +71,7 @@ class AppController {
       icon: "💻",
       title: "Pilih Peran Laptop",
       bodyHTML: roleHTML,
-      buttonText: "⚡ Mode 1-Layar (Main Langsung)",
+      buttonText: "⚡ Mode 1-Layar Proyektor (Uji Coba)",
       onButtonClick: () => {
         gameState.role = 'HOST';
         gameState.setupTeams(2);
@@ -88,44 +89,73 @@ class AppController {
     }, 100);
   }
 
-  // Setup Role HOST (Laptop Proyektor Guru)
+  // Setup Role HOST (Laptop Proyektor Guru - SPECTATOR MODE)
   setupHostRoom() {
     gameState.role = 'HOST';
     const roomCode = gameState.generateRoomCode();
+    gameState.setupTeams(this.selectedTeamCount);
     networkEngine.initRoomChannel(roomCode);
 
     uiManager.renderRoomCodeBanner(roomCode);
 
-    // Host Team Setup Modal
+    // Create PeerJS Host Room
+    networkEngine.createHostPeer(roomCode, () => {
+      console.log("Host Peer Active:", roomCode);
+    });
+
+    this.renderHostLobbyModal(roomCode);
+  }
+
+  // Render Host Lobby Modal dengan Indikator Tim Joined Real-Time
+  renderHostLobbyModal(roomCode) {
+    let teamStatusHTML = '';
+    gameState.teams.forEach(team => {
+      const isConnected = gameState.teamConnections[team.id];
+      teamStatusHTML += `
+        <div class="team-status-card" style="border-left: 6px solid ${team.color};">
+          <div>
+            <span>${team.badge}</span> <strong>${team.name}</strong>
+          </div>
+          <span class="${isConnected ? 'badge-status-connected' : 'badge-status-waiting'}">
+            ${isConnected ? '🟢 Terhubung' : '⏳ Menunggu...'}
+          </span>
+        </div>
+      `;
+    });
+
+    const hasPlayers = gameState.hasAnyPlayerJoined();
+
     const hostHTML = `
-      <p>Ruangan berhasil dibuat!</p>
-      <div style="background: #FFF9C4; padding: 12px; border-radius: 16px; margin: 12px 0; border: 3.5px solid var(--ink-dark); box-shadow: 3px 3px 0px var(--ink-dark);">
-        <span style="font-size: 0.9rem; font-weight: 700;">KODE RUANGAN:</span>
-        <h2 style="color: #C62828; font-size: 2.2rem; margin: 4px 0; letter-spacing: 3px; font-family: var(--font-heading);">${roomCode}</h2>
+      <div style="background: #FFF9C4; padding: 12px; border-radius: 16px; margin-bottom: 12px; border: 3.5px solid var(--ink-dark); box-shadow: 3px 3px 0px var(--ink-dark);">
+        <span style="font-size: 0.85rem; font-weight: 700;">KODE RUANGAN:</span>
+        <h2 style="color: #C62828; font-size: 2.3rem; margin: 2px 0; letter-spacing: 3px; font-family: var(--font-heading);">${roomCode}</h2>
         <span style="font-size: 0.85rem; color: #444;">Tampilkan kode ini di proyektor agar laptop siswa dapat bergabung!</span>
       </div>
 
-      <p style="margin-top: 15px;">Pilih jumlah tim yang bertanding:</p>
+      <p style="margin-top: 10px; font-weight: 700;">Pilih Jumlah Tim Pertandingan:</p>
       <div class="lobby-team-selector">
-        <button class="btn-team-count selected" data-count="2">2 Tim (🔴 vs 🔵)</button>
-        <button class="btn-team-count" data-count="3">3 Tim (🔴 🔵 🟢)</button>
-        <button class="btn-team-count" data-count="4">4 Tim (🔴 🔵 🟢 🟡)</button>
+        <button class="btn-team-count ${this.selectedTeamCount === 2 ? 'selected' : ''}" data-count="2">2 Tim (🔴 vs 🔵)</button>
+        <button class="btn-team-count ${this.selectedTeamCount === 3 ? 'selected' : ''}" data-count="3">3 Tim (🔴 🔵 🟢)</button>
+        <button class="btn-team-count ${this.selectedTeamCount === 4 ? 'selected' : ''}" data-count="4">4 Tim (🔴 🔵 🟢 🟡)</button>
+      </div>
+
+      <p style="margin-top: 14px; font-weight: 700;">Status Koneksi Laptop Siswa (Real-Time):</p>
+      <div class="host-lobby-team-status-grid" id="host-team-status-grid">
+        ${teamStatusHTML}
       </div>
     `;
 
     uiManager.showModal({
       icon: "🖥️",
-      title: "Ruangan Host Terbuat",
+      title: "Ruangan Host Terbuat (Proyektor Guru)",
       bodyHTML: hostHTML,
-      buttonText: "🚀 Mulai Pertandingan Real-Time",
+      buttonText: hasPlayers ? "🚀 Mulai Pertandingan Real-Time" : "⏳ Menunggu Laptop Siswa Bergabung...",
       onButtonClick: () => {
-        gameState.setupTeams(this.selectedTeamCount);
-        uiManager.updateHeader();
-
-        // Create PeerJS Host Room
-        networkEngine.createHostPeer(roomCode, () => {
-          console.log("Host Peer Active:", roomCode);
-        });
+        if (!hasPlayers) {
+          alert("Menunggu setidaknya 1 Laptop Siswa terhubung ke ruangan terlebih dahulu!");
+          this.renderHostLobbyModal(roomCode);
+          return;
+        }
 
         this.startGame();
         networkEngine.broadcast('START_GAME', { 
@@ -137,6 +167,12 @@ class AppController {
       }
     });
 
+    // Disable action button if no players joined yet
+    if (uiManager.modalActionBtn) {
+      uiManager.modalActionBtn.disabled = !hasPlayers;
+    }
+
+    // Bind Team Count Pills
     setTimeout(() => {
       const btns = document.querySelectorAll('.btn-team-count');
       btns.forEach(btn => {
@@ -145,17 +181,21 @@ class AppController {
           e.currentTarget.classList.add('selected');
           this.selectedTeamCount = parseInt(e.currentTarget.getAttribute('data-count')) || 2;
           gameState.setupTeams(this.selectedTeamCount);
+          
           networkEngine.broadcast('ROOM_STATE', {
             roomCode: roomCode,
             teamCount: this.selectedTeamCount,
-            teams: gameState.teams
+            teams: gameState.teams,
+            teamConnections: gameState.teamConnections
           });
+
+          this.renderHostLobbyModal(roomCode);
         };
       });
     }, 100);
   }
 
-  // Setup Role PLAYER (Laptop Siswa)
+  // Setup Role PLAYER (Laptop Siswa - PLAYER CONTROLLER MODE)
   setupPlayerJoin() {
     gameState.role = 'PLAYER';
 
@@ -166,7 +206,7 @@ class AppController {
         <input type="text" id="input-room-code" class="room-input-field" placeholder="SILIR-XXXX" maxlength="10" value="${gameState.roomCode || ''}">
       </div>
 
-      <p style="margin-top: 10px;">Pilih Tim Laptop Ini:</p>
+      <p style="margin-top: 10px; font-weight: 700;">Pilih Tim Laptop Ini:</p>
       <div class="team-select-grid" id="team-select-grid">
         <button class="team-select-btn selected" data-team="team-red" style="background: #FFEBEE; color: #C62828;">🔴 Tim Merah</button>
         <button class="team-select-btn" data-team="team-blue" style="background: #E3F2FD; color: #1565C0;">🔵 Tim Biru</button>
@@ -190,7 +230,7 @@ class AppController {
           return;
         }
 
-        // Auto normalize room code (e.g. "J59B" -> "SILIR-J59B")
+        // Auto normalize room code (e.g. "BW6K" -> "SILIR-BW6K")
         if (!enteredCode.startsWith('SILIR-')) {
           enteredCode = `SILIR-${enteredCode}`;
         }
@@ -204,10 +244,13 @@ class AppController {
           console.log("Player Connected Status:", success);
         });
 
-        // Notify Host that player joined & request room state
-        networkEngine.broadcast('PLAYER_JOINED', { roomCode: enteredCode });
+        // Notify Host that player joined with chosen team
+        networkEngine.broadcast('PLAYER_JOINED', { 
+          roomCode: enteredCode, 
+          teamId: gameState.myTeamId 
+        });
 
-        // Show Waiting Lobby Screen for Player (Don't start game timer until Host clicks Start!)
+        // Show Waiting Lobby Screen for Player until Host launches game
         this.showPlayerWaitingLobby(enteredCode);
       }
     });
@@ -226,14 +269,16 @@ class AppController {
 
   // Display Waiting Lobby Modal for Player until Host launches game
   showPlayerWaitingLobby(roomCode) {
+    const myTeam = gameState.activeTeam;
     const waitingHTML = `
-      <div style="background: #E8F5E9; padding: 14px; border-radius: 16px; margin: 12px 0; border: 3px solid var(--ink-dark); text-align: center;">
-        <span style="font-size: 0.9rem; font-weight: 700;">TERHUBUNG KE RUANGAN:</span>
-        <h2 style="color: #2E7D32; font-size: 2rem; margin: 4px 0; letter-spacing: 2px;">${roomCode}</h2>
+      <div style="background: #E8F5E9; padding: 14px; border-radius: 16px; margin: 12px 0; border: 3.5px solid var(--ink-dark); text-align: center; box-shadow: 3px 3px 0px var(--ink-dark);">
+        <span style="font-size: 0.85rem; font-weight: 700;">TERHUBUNG KE RUANGAN:</span>
+        <h2 style="color: #2E7D32; font-size: 2.1rem; margin: 2px 0; letter-spacing: 2px; font-family: var(--font-heading);">${roomCode}</h2>
+        <div style="margin: 10px 0; padding: 8px 14px; background: ${myTeam.color}; color: white; border-radius: 14px; display: inline-block; font-weight: 900; border: 2px solid var(--ink-dark);">
+          ${myTeam.badge} Tim Kamu: ${myTeam.name}
+        </div>
         <p style="margin-top: 8px; color: #1B5E20; font-weight: 700;">⏳ Menunggu Guru (Host Proyektor) menekan tombol "Mulai Pertandingan"...</p>
       </div>
-
-      <p style="margin-top: 10px;">Tim kamu saat ini: <strong>${gameState.activeTeam.badge} ${gameState.activeTeam.name}</strong></p>
     `;
 
     uiManager.showModal({
@@ -242,12 +287,19 @@ class AppController {
       bodyHTML: waitingHTML,
       buttonText: "🔄 Cek Status Ruangan",
       onButtonClick: () => {
-        networkEngine.broadcast('PLAYER_JOINED', { roomCode: roomCode });
+        networkEngine.broadcast('PLAYER_JOINED', { 
+          roomCode: roomCode,
+          teamId: gameState.myTeamId 
+        });
         if (gameState.phase === 'LOBBY') {
           this.showPlayerWaitingLobby(roomCode);
         }
       }
     });
+
+    if (uiManager.modalActionBtn) {
+      uiManager.modalActionBtn.disabled = false;
+    }
   }
 
   // Start Playing Phase
@@ -307,9 +359,15 @@ class AppController {
     uiManager.showHintToast(targetItem.hint);
   }
 
-  // Handler Realtime Click pada Hotspot Kesalahan (Rebut-Rebutan)
+  // Handler Realtime Click pada Hotspot Kesalahan
   handleHitspotClick(item, event) {
     if (gameState.phase !== 'PLAYING') return;
+
+    // SPECTATOR MODE GUARD: Host Proyektor CANNOT click or answer items!
+    if (gameState.role === 'HOST') {
+      uiManager.showHintToast('🖥️ Layar Proyektor Host (Mode Spectator - Siswa menjawab dari Laptop Pemain)');
+      return;
+    }
 
     // Jika sudah diklaim tim lain, abaikan
     if (gameState.isClaimed(item.id)) return;
@@ -326,7 +384,7 @@ class AppController {
     this.executeItemClaim(item.id, claimingTeam.id, event);
   }
 
-  // Execute Item Claim Logic
+  // Execute Item Claim Logic across Host & Player Laptops
   executeItemClaim(itemId, teamId, event) {
     const item = MISTAKES_DATA.find(i => i.id === itemId);
     if (!item) return;
@@ -363,7 +421,6 @@ class AppController {
 
     // Auto-Resume Timer Counter (4 Seconds auto resume to prevent blocking multiplayer flow)
     let countdownSecs = 4;
-
     const getBtnText = (s) => `➡ Lanjut Rebutan Item (${s}s)`;
 
     // Show Educational Popup with Team Claim Banner & Image Preview
@@ -411,6 +468,9 @@ class AppController {
   handleBackgroundClick(event) {
     if (gameState.phase !== 'PLAYING') return;
 
+    // SPECTATOR MODE GUARD for Host Proyektor
+    if (gameState.role === 'HOST') return;
+
     const rect = uiManager.viewport.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
@@ -422,6 +482,13 @@ class AppController {
   // Handler Lensa Detektif
   handleUseLens() {
     if (gameState.phase !== 'PLAYING') return;
+
+    // SPECTATOR MODE GUARD for Host Proyektor
+    if (gameState.role === 'HOST') {
+      uiManager.showHintToast('🖥️ Layar Proyektor Host (Lensa dipicu oleh Laptop Pemain)');
+      return;
+    }
+
     if (gameState.useLens()) {
       uiManager.triggerLensGlow(MISTAKES_DATA);
       networkEngine.broadcast('USE_LENS', {});
@@ -433,12 +500,24 @@ class AppController {
     switch (data.type) {
       case 'PLAYER_JOINED':
         if (gameState.role === 'HOST') {
-          // Send current full game state to joining player
+          if (data.payload.teamId) {
+            gameState.markTeamConnected(data.payload.teamId, true);
+          } else {
+            gameState.markTeamConnected('team-red', true);
+          }
+
+          // Update Host Lobby live UI indicators
+          if (gameState.phase === 'LOBBY') {
+            this.renderHostLobbyModal(gameState.roomCode);
+          }
+
+          // Broadcast updated room state to all players
           networkEngine.broadcast('ROOM_STATE', {
             roomCode: gameState.roomCode,
             phase: gameState.phase,
             teamCount: gameState.activeTeamsCount,
             teams: gameState.teams,
+            teamConnections: gameState.teamConnections,
             itemOwnership: gameState.itemOwnership,
             timeLeft: gameState.timeLeft,
             lensUsed: gameState.lensUsed
@@ -460,6 +539,9 @@ class AppController {
       case 'ROOM_STATE':
         if (gameState.role === 'PLAYER') {
           gameState.setupTeams(data.payload.teamCount || 2);
+          if (data.payload.teamConnections) {
+            gameState.teamConnections = { ...data.payload.teamConnections };
+          }
           if (data.payload.teams) {
             data.payload.teams.forEach(t => {
               const localT = gameState.teams.find(lt => lt.id === t.id);
