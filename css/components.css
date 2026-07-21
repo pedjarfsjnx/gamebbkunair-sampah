@@ -649,6 +649,12 @@
   background: #FFE0B2;
 }
 
+.podium-card.rank-4 {
+  order: 4;
+  background: #F5F5F5;
+  opacity: 0.9;
+}
+
 .podium-rank-num {
   font-size: 1.2rem;
   font-weight: 900;

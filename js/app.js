@@ -2,7 +2,14 @@
  * Multi-Laptop Game Controller (app.js)
  * Host Proyektor Guru (Spectator Mode) vs Player Controller (Laptop Siswa)
  * Mengontrol alur Pembuatan Room Host, Indikator Real-Time Tim Joined, Spectator Display & Host Controls,
- * Realtime WebRTC/P2P Claim, Sync Timer, 1 Laptop = 1 Tim Enforcement, dan Victory Podium.
+ * Realtime WebRTC/P2P Claim, Host Authority Claim Confirmation, Sync Timer, 1 Laptop = 1 Tim Enforcement, dan Victory Podium.
+ *
+ * BUGFIXES (5-Player Simulation):
+ * - [FIX-1] CLAIM_ITEM dari jaringan sekarang hanya update state+visual, TIDAK tampilkan popup (hanya pengirim & HOST yang tampilkan popup)
+ * - [FIX-2] Double-claim guard: cek isClaimed sebelum executeItemClaim di handler jaringan
+ * - [FIX-3] renderPlayerJoinModal tidak lagi dipanggil otomatis dari ROOM_STATE setelah player sudah join
+ * - [FIX-4] Player join menggunakan teamCount dari Host, bukan hardcode 4
+ * - [FIX-5] Anti-popup-stack: cek gameState.phase !== 'PLAYING' sebelum tampilkan popup klaim
  */
 
 class AppController {
@@ -12,27 +19,23 @@ class AppController {
     this.selectedTimerDuration = 180; // Default 3 Menit
     this.autoResumeTimeout = null;
     this.isWrongClickCooldown = false;
+    this._countIntervals = []; // track all active countIntervals to avoid duplicates
+    this._hasJoinedRoom = false; // track if player has successfully joined
   }
 
   init() {
-    // Connect to Network Sync Engine & listen to incoming realtime messages across laptops
     networkEngine.onMessage((msg) => this.handleNetworkEvent(msg));
-
-    // Render hotspot di scene dengan aset gambar HD
     uiManager.renderHotspots(MISTAKES_DATA, (item, e) => this.handleHitspotClick(item, e));
 
-    // Bind event background miss click (salah)
     const gameScene = document.getElementById('game-scene');
     if (gameScene) {
       gameScene.addEventListener('click', (e) => this.handleBackgroundClick(e));
     }
 
-    // Bind Detective Lens Button
     if (uiManager.btnLens) {
       uiManager.btnLens.onclick = () => this.handleUseLens();
     }
 
-    // Bind Sound Control Toggle
     if (uiManager.btnSound) {
       uiManager.btnSound.onclick = () => {
         const isMuted = soundEngine.toggleMute();
@@ -40,11 +43,10 @@ class AppController {
       };
     }
 
-    // Show Multi-Laptop Role Selection Modal (Host vs Player)
     this.showRoleSelectionModal();
   }
 
-  // Step 1: Role Selection Modal (Host Proyektor Guru vs Laptop Pemain Siswa)
+  // Step 1: Role Selection Modal
   showRoleSelectionModal() {
     const roleHTML = `
       <p><strong>Selamat Datang di Multi-Laptop Online Room System!</strong></p>
@@ -85,23 +87,20 @@ class AppController {
     setTimeout(() => {
       const btnHost = document.getElementById('btn-role-host');
       const btnPlayer = document.getElementById('btn-role-player');
-
       if (btnHost) btnHost.onclick = () => this.setupHostRoom();
       if (btnPlayer) btnPlayer.onclick = () => this.setupPlayerJoin();
     }, 100);
   }
 
-  // Setup Role HOST (Laptop Proyektor Guru - SPECTATOR MODE)
+  // Setup Role HOST
   setupHostRoom() {
     gameState.role = 'HOST';
     const roomCode = gameState.generateRoomCode();
     gameState.setupTeams(this.selectedTeamCount);
     gameState.setTimerDuration(this.selectedTimerDuration);
     networkEngine.initRoomChannel(roomCode);
-
     uiManager.renderRoomCodeBanner(roomCode);
 
-    // Create PeerJS Host Room
     networkEngine.createHostPeer(roomCode, () => {
       console.log("Host Peer Active:", roomCode);
     });
@@ -109,16 +108,14 @@ class AppController {
     this.renderHostLobbyModal(roomCode);
   }
 
-  // Render Host Lobby Modal dengan Indikator Tim Joined & Timer Selector Real-Time
+  // Render Host Lobby Modal
   renderHostLobbyModal(roomCode) {
     let teamStatusHTML = '';
     gameState.teams.forEach(team => {
       const isConnected = gameState.teamConnections[team.id];
       teamStatusHTML += `
         <div class="team-status-card" style="border-left: 6px solid ${team.color};">
-          <div>
-            <span>${team.badge}</span> <strong>${team.name}</strong>
-          </div>
+          <div><span>${team.badge}</span> <strong>${team.name}</strong></div>
           <span class="${isConnected ? 'badge-status-connected' : 'badge-status-waiting'}">
             ${isConnected ? '🟢 Terhubung' : '⏳ Menunggu...'}
           </span>
@@ -136,7 +133,7 @@ class AppController {
       </div>
 
       <div style="display: flex; gap: 14px; flex-wrap: wrap; justify-content: space-between;">
-        <div style="flex: 1; min-width: 200px;">
+        <div style="flex: 1; min-width: 180px;">
           <p style="font-weight: 700; margin-bottom: 6px;">Pilih Jumlah Tim:</p>
           <div class="lobby-team-selector">
             <button class="btn-team-count ${this.selectedTeamCount === 2 ? 'selected' : ''}" data-count="2">2 Tim</button>
@@ -145,7 +142,7 @@ class AppController {
           </div>
         </div>
 
-        <div style="flex: 1; min-width: 200px;">
+        <div style="flex: 1; min-width: 180px;">
           <p style="font-weight: 700; margin-bottom: 6px;">Durasi Timer Misi:</p>
           <div class="lobby-team-selector">
             <button class="btn-timer-dur ${this.selectedTimerDuration === 180 ? 'selected' : ''}" data-time="180">⏱️ 3 Menit</button>
@@ -176,8 +173,8 @@ class AppController {
         gameState.setTimerDuration(this.selectedTimerDuration);
 
         this.startGame();
-        networkEngine.broadcast('START_GAME', { 
-          teamCount: this.selectedTeamCount, 
+        networkEngine.broadcast('START_GAME', {
+          teamCount: this.selectedTeamCount,
           roomCode: roomCode,
           teams: gameState.teams,
           timeLeft: gameState.maxTimeSeconds
@@ -189,7 +186,6 @@ class AppController {
       uiManager.modalActionBtn.disabled = !hasPlayers;
     }
 
-    // Bind Controls
     setTimeout(() => {
       const btnsCount = document.querySelectorAll('.btn-team-count');
       btnsCount.forEach(btn => {
@@ -226,12 +222,19 @@ class AppController {
     });
   }
 
-  // Setup Role PLAYER (Laptop Siswa - PLAYER CONTROLLER MODE)
+  // Setup Role PLAYER
   setupPlayerJoin() {
     gameState.role = 'PLAYER';
+    this._hasJoinedRoom = false;
+    this.renderPlayerJoinModal();
+  }
 
-    // 1 Laptop = 1 Tim Enforcement
-    let teamSelectHTML = '';
+  renderPlayerJoinModal() {
+    // Only render if player hasn't joined yet (FIX-3: prevent re-rendering after join)
+    if (this._hasJoinedRoom) return;
+
+    // ALWAYS show all 4 teams regardless of host team count
+    // (team count restriction is Host's concern, not player's selection UI)
     const presets = [
       { id: 'team-red', name: '🔴 Tim Merah', color: '#FFEBEE', textColor: '#C62828' },
       { id: 'team-blue', name: '🔵 Tim Biru', color: '#E3F2FD', textColor: '#1565C0' },
@@ -239,26 +242,32 @@ class AppController {
       { id: 'team-yellow', name: '🟡 Tim Kuning', color: '#FFFDE7', textColor: '#F57F17' }
     ];
 
-    presets.forEach((t, idx) => {
-      const isTaken = gameState.teamConnections[t.id];
-      const isSelected = (gameState.myTeamId === t.id && !isTaken) || (idx === 0 && !isTaken);
+    // Auto-select first available if current choice is taken
+    const myCurrentOk = presets.some(t => t.id === gameState.myTeamId && !gameState.teamConnections[t.id]);
+    if (!myCurrentOk) {
+      const firstFree = presets.find(t => !gameState.teamConnections[t.id]);
+      if (firstFree) gameState.myTeamId = firstFree.id;
+    }
+
+    let teamSelectHTML = '';
+    presets.forEach(t => {
+      const isTaken = !!gameState.teamConnections[t.id];
+      const isSelected = gameState.myTeamId === t.id && !isTaken;
       teamSelectHTML += `
-        <button class="team-select-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken-disabled' : ''}" 
-                data-team="${t.id}" 
-                ${isTaken ? 'disabled' : ''} 
-                style="background: ${isTaken ? '#CFD8DC' : t.color}; color: ${isTaken ? '#78909C' : t.textColor};">
-          ${t.name} ${isTaken ? '(Sudah Diambil)' : ''}
+        <button class="team-select-btn ${isSelected ? 'selected' : ''} ${isTaken ? 'taken-disabled' : ''}"
+                data-team="${t.id}"
+                ${isTaken ? 'disabled' : ''}
+                style="background: ${isTaken ? '#CFD8DC' : t.color}; color: ${isTaken ? '#78909C' : t.textColor}; border: 3px solid var(--ink-dark);">
+          ${t.name} ${isTaken ? '<small>(Sudah Diambil)</small>' : ''}
         </button>
       `;
     });
 
     const playerHTML = `
       <p>Masukkan Kode Ruangan yang tampil di layar Proyektor Host Guru:</p>
-      
       <div class="room-input-container">
         <input type="text" id="input-room-code" class="room-input-field" placeholder="SILIR-XXXX" maxlength="10" value="${gameState.roomCode || ''}">
       </div>
-
       <p style="margin-top: 10px; font-weight: 700;">Pilih Tim Laptop Ini (1 Laptop Mewakili 1 Tim):</p>
       <div class="team-select-grid" id="team-select-grid">
         ${teamSelectHTML}
@@ -276,31 +285,28 @@ class AppController {
 
         if (!enteredCode) {
           alert("Mohon masukkan Kode Ruangan terlebih dahulu!");
-          this.setupPlayerJoin();
           return;
         }
 
-        // Auto normalize room code (e.g. "BW6K" -> "SILIR-BW6K")
         if (!enteredCode.startsWith('SILIR-')) {
           enteredCode = `SILIR-${enteredCode}`;
         }
 
         gameState.roomCode = enteredCode;
-        gameState.setupTeams(4);
+        // [FIX-4] Don't override team count; use whatever Host set via ROOM_STATE
         networkEngine.initRoomChannel(enteredCode);
 
-        // Connect PeerJS Player to Host
         networkEngine.joinPlayerPeer(enteredCode, (success) => {
           console.log("Player Connected Status:", success);
         });
 
-        // Notify Host that player joined with chosen team
-        networkEngine.broadcast('PLAYER_JOINED', { 
-          roomCode: enteredCode, 
-          teamId: gameState.myTeamId 
+        this._hasJoinedRoom = true; // [FIX-3] Mark as joined so modal won't re-render
+
+        networkEngine.broadcast('PLAYER_JOINED', {
+          roomCode: enteredCode,
+          teamId: gameState.myTeamId
         });
 
-        // Show Waiting Lobby Screen for Player until Host launches game
         this.showPlayerWaitingLobby(enteredCode);
       }
     });
@@ -317,7 +323,7 @@ class AppController {
     }, 100);
   }
 
-  // Display Waiting Lobby Modal for Player until Host launches game
+  // Player Waiting Lobby
   showPlayerWaitingLobby(roomCode) {
     const myTeam = gameState.activeTeam;
     const waitingHTML = `
@@ -328,6 +334,7 @@ class AppController {
           ${myTeam.badge} Tim Kamu: ${myTeam.name}
         </div>
         <p style="margin-top: 8px; color: #1B5E20; font-weight: 700;">⏳ Menunggu Guru (Host Proyektor) menekan tombol "Mulai Pertandingan"...</p>
+        <p id="ping-status-txt" style="font-size: 0.8rem; color: #78909C; margin-top: 4px;">📡 Mengirim sinyal ke Host setiap 3 detik...</p>
       </div>
     `;
 
@@ -335,11 +342,11 @@ class AppController {
       icon: "⏳",
       title: "Ruangan Pemain Terhubung",
       bodyHTML: waitingHTML,
-      buttonText: "🔄 Cek Status Ruangan",
+      buttonText: "🔄 Ping Ulang ke Host",
       onButtonClick: () => {
-        networkEngine.broadcast('PLAYER_JOINED', { 
+        networkEngine.broadcast('PLAYER_JOINED', {
           roomCode: roomCode,
-          teamId: gameState.myTeamId 
+          teamId: gameState.myTeamId
         });
         if (gameState.phase === 'LOBBY') {
           this.showPlayerWaitingLobby(roomCode);
@@ -350,6 +357,22 @@ class AppController {
     if (uiManager.modalActionBtn) {
       uiManager.modalActionBtn.disabled = false;
     }
+
+    // Auto-ping Host every 3 seconds until game starts
+    // This ensures Host registers Player even if first message was missed
+    if (this._pingInterval) clearInterval(this._pingInterval);
+    this._pingInterval = setInterval(() => {
+      if (gameState.phase !== 'LOBBY') {
+        clearInterval(this._pingInterval);
+        return;
+      }
+      networkEngine.broadcast('PLAYER_JOINED', {
+        roomCode: roomCode,
+        teamId: gameState.myTeamId
+      });
+      const txt = document.getElementById('ping-status-txt');
+      if (txt) txt.textContent = '📡 Sinyal terkirim ke Host... (' + new Date().toLocaleTimeString() + ')';
+    }, 3000);
   }
 
   // Start Playing Phase
@@ -361,7 +384,6 @@ class AppController {
     this.startTimerLoop();
   }
 
-  // Timer Tick Interval (1s)
   startTimerLoop() {
     if (this.timerInterval) clearInterval(this.timerInterval);
 
@@ -375,17 +397,15 @@ class AppController {
 
       uiManager.updateTimerDisplay(gameState.timeLeft);
 
-      // Host Authority: Broadcast Timer Sync every 5 seconds to keep all laptops locked in sync
+      // Host Authority: Broadcast Timer Sync every 5 seconds
       if (gameState.role === 'HOST' && gameState.timeLeft % 5 === 0) {
         networkEngine.broadcast('SYNC_TIMER', { timeLeft: gameState.timeLeft });
       }
 
-      // System Auto-Hint setiap 25 detik inaktivitas
       if (gameState.inactivitySeconds >= gameState.hintIntervalSeconds && gameState.hintsGiven < gameState.maxHints) {
         this.triggerAutoHint();
       }
 
-      // Time Out Check (180 Detik Habis)
       if (gameState.timeLeft <= 0) {
         this.handleTimeout();
       }
@@ -399,60 +419,61 @@ class AppController {
     }
   }
 
-  // Trigger Hint Otomatis
   triggerAutoHint() {
     const unfound = gameState.getUnclaimedItems(MISTAKES_DATA);
     if (unfound.length === 0) return;
-
     const targetItem = unfound[Math.floor(Math.random() * unfound.length)];
     gameState.hintsGiven++;
     gameState.inactivitySeconds = 0;
-
     uiManager.showHintToast(targetItem.hint);
   }
 
-  // Handler Realtime Click pada Hotspot Kesalahan
+  // Handler click hotspot oleh Pemain
   handleHitspotClick(item, event) {
     if (gameState.phase !== 'PLAYING') return;
 
-    // SPECTATOR MODE GUARD: Host Proyektor CANNOT click or answer items!
     if (gameState.role === 'HOST') {
       uiManager.showHintToast('🖥️ Layar Proyektor Host (Mode Spectator - Siswa menjawab dari Laptop Pemain)');
       return;
     }
 
-    // Jika sedang cooldown klik salah, abaikan
     if (this.isWrongClickCooldown) return;
-
-    // Jika sudah diklaim tim lain, abaikan
     if (gameState.isClaimed(item.id)) return;
 
     const claimingTeam = gameState.activeTeam;
 
-    // Broadcast Realtime Claim across all connected laptops
+    // Broadcast ke semua laptop lain (termasuk HOST)
     networkEngine.broadcast('CLAIM_ITEM', {
       itemId: item.id,
       teamId: claimingTeam.id
     });
 
-    // Execute Local Claim
-    this.executeItemClaim(item.id, claimingTeam.id, event);
+    // Execute lokal dengan popup (pengirim = yang klik)
+    this.executeItemClaim(item.id, claimingTeam.id, event, true);
   }
 
-  // Execute Item Claim Logic across Host & Player Laptops
-  executeItemClaim(itemId, teamId, event) {
+  /**
+   * Execute Item Claim
+   * @param {number} itemId
+   * @param {string} teamId
+   * @param {Event|null} event - mouse event for visual marker
+   * @param {boolean} showPopup - true hanya di pengirim dan HOST
+   */
+  executeItemClaim(itemId, teamId, event, showPopup = false) {
     const item = MISTAKES_DATA.find(i => i.id === itemId);
     if (!item) return;
 
+    // [FIX-2] Guard double-claim: jika sudah diklaim, jangan proses lagi
+    if (gameState.isClaimed(itemId)) return;
+
     const claimed = gameState.claimItem(itemId, teamId);
-    if (!claimed && gameState.isClaimed(itemId)) return;
+    if (!claimed) return; // another race condition guard
 
     const ownerTeam = gameState.getOwner(itemId) || gameState.teams[0];
 
-    // Audio SFX Correct Ding!
+    // Audio & Visual feedback
     soundEngine.playCorrect();
 
-    // Visual Marker Ring
     if (event) {
       const rect = uiManager.viewport.getBoundingClientRect();
       const x = event.clientX - rect.left;
@@ -460,25 +481,41 @@ class AppController {
       uiManager.showCorrectPulseMarker(x, y);
     }
 
-    // Update Header Scorecards & Hotspots Layer across laptops
+    // Update visual layer (semua laptop)
     uiManager.updateHeader();
     uiManager.renderHotspots(MISTAKES_DATA, (i, e) => this.handleHitspotClick(i, e));
 
     if (gameState.role === 'HOST') {
       gameState.nextTurn();
       uiManager.updateHeader();
+
+      // HOST: Re-broadcast state final ke semua 4 player (authority confirmation)
+      networkEngine.broadcast('CONFIRM_CLAIM_ITEM', {
+        itemId: itemId,
+        teamId: teamId,
+        teams: gameState.teams,
+        itemOwnership: gameState.itemOwnership
+      });
     }
+
+    // [FIX-5] Hanya tampilkan popup di: (a) laptop yang klik, (b) HOST spectator
+    // Laptop player lain hanya update visual/skor tanpa popup
+    if (!showPopup) return;
+
+    // [FIX-5] Anti popup-stack: jangan tampilkan kalau sudah PAUSED
+    if (gameState.phase === 'PAUSED') return;
 
     gameState.phase = 'PAUSED';
 
-    // Clear previous auto-resume timer if active
+    // Clear all existing countdown intervals
+    this._countIntervals.forEach(id => clearInterval(id));
+    this._countIntervals = [];
+
     if (this.autoResumeTimeout) clearTimeout(this.autoResumeTimeout);
 
-    // Auto-Resume Timer Counter (4 Seconds auto resume to prevent blocking multiplayer flow)
     let countdownSecs = 4;
     const getBtnText = (s) => `➡ Lanjut Rebutan Item (${s}s)`;
 
-    // Show Educational Popup with Team Claim Banner & Image Preview
     uiManager.showModal({
       icon: item.icon,
       title: `${ownerTeam.badge} ${ownerTeam.name} Berhasil Mengklaim!`,
@@ -492,22 +529,24 @@ class AppController {
       `,
       buttonText: getBtnText(countdownSecs),
       onButtonClick: () => {
-        if (this.autoResumeTimeout) clearTimeout(this.autoResumeTimeout);
+        this._countIntervals.forEach(id => clearInterval(id));
+        this._countIntervals = [];
         this.resumePlayPhase();
       }
     });
 
-    // Auto countdown interval for modal auto-resume
-    const countInterval = setInterval(() => {
+    const countId = setInterval(() => {
       countdownSecs--;
       if (uiManager.modalActionBtn && gameState.phase === 'PAUSED') {
         uiManager.modalActionBtn.innerText = getBtnText(Math.max(0, countdownSecs));
       }
       if (countdownSecs <= 0) {
-        clearInterval(countInterval);
+        clearInterval(countId);
+        this._countIntervals = this._countIntervals.filter(id => id !== countId);
         this.resumePlayPhase();
       }
     }, 1000);
+    this._countIntervals.push(countId);
   }
 
   resumePlayPhase() {
@@ -519,15 +558,12 @@ class AppController {
     }
   }
 
-  // Handler Klik Salah pada Background (dengan 1.5 detik Anti-Spam Cooldown Penalty)
+  // Handler klik background salah
   handleBackgroundClick(event) {
     if (gameState.phase !== 'PLAYING') return;
-
-    // SPECTATOR MODE GUARD for Host Proyektor
     if (gameState.role === 'HOST') return;
-
-    // Anti-Spam Click Lock (1.5s Cooldown)
     if (this.isWrongClickCooldown) return;
+
     this.isWrongClickCooldown = true;
 
     const rect = uiManager.viewport.getBoundingClientRect();
@@ -542,39 +578,31 @@ class AppController {
     }, 1500);
   }
 
-  // Handler Lensa Detektif
   handleUseLens() {
     if (gameState.phase !== 'PLAYING') return;
-
-    // SPECTATOR MODE GUARD for Host Proyektor
     if (gameState.role === 'HOST') {
       uiManager.showHintToast('🖥️ Layar Proyektor Host (Lensa dipicu oleh Laptop Pemain)');
       return;
     }
-
     if (gameState.useLens()) {
       uiManager.triggerLensGlow(MISTAKES_DATA);
       networkEngine.broadcast('USE_LENS', {});
     }
   }
 
-  // Listen to Incoming Realtime Network Sync Messages across Laptops
+  // Realtime Network Event Handler
   handleNetworkEvent(data) {
     switch (data.type) {
+
       case 'PLAYER_JOINED':
         if (gameState.role === 'HOST') {
-          if (data.payload.teamId) {
-            gameState.markTeamConnected(data.payload.teamId, true);
-          } else {
-            gameState.markTeamConnected('team-red', true);
-          }
+          gameState.markTeamConnected(data.payload.teamId || 'team-red', true);
 
-          // Update Host Lobby live UI indicators
           if (gameState.phase === 'LOBBY') {
             this.renderHostLobbyModal(gameState.roomCode);
           }
 
-          // Broadcast updated room state to all players
+          // Broadcast full room state back to all connected players
           networkEngine.broadcast('ROOM_STATE', {
             roomCode: gameState.roomCode,
             phase: gameState.phase,
@@ -586,7 +614,7 @@ class AppController {
             lensUsed: gameState.lensUsed
           });
 
-          // If game is already playing, send START_GAME to force late-join player into game phase!
+          // If already in game, give late-joiner the START_GAME event
           if (gameState.phase === 'PLAYING') {
             networkEngine.broadcast('START_GAME', {
               teamCount: gameState.activeTeamsCount,
@@ -601,7 +629,10 @@ class AppController {
 
       case 'ROOM_STATE':
         if (gameState.role === 'PLAYER') {
-          gameState.setupTeams(data.payload.teamCount || 2);
+          // [FIX-4] Sync team count from Host
+          const hostTeamCount = data.payload.teamCount || 2;
+          gameState.setupTeams(hostTeamCount);
+
           if (data.payload.teamConnections) {
             gameState.teamConnections = { ...data.payload.teamConnections };
           }
@@ -620,22 +651,15 @@ class AppController {
           if (data.payload.timeLeft) {
             gameState.timeLeft = data.payload.timeLeft;
           }
+
           uiManager.updateHeader();
           uiManager.renderHotspots(MISTAKES_DATA, (item, e) => this.handleHitspotClick(item, e));
 
-          // Refresh Player Join UI if still in player selection modal
-          if (gameState.phase === 'LOBBY') {
-            const teamBtns = document.querySelectorAll('.team-select-btn');
-            teamBtns.forEach(btn => {
-              const tid = btn.getAttribute('data-team');
-              if (gameState.teamConnections[tid] && gameState.myTeamId !== tid) {
-                btn.classList.add('taken-disabled');
-                btn.disabled = true;
-              }
-            });
+          // [FIX-3] Only re-render player join modal if NOT yet joined
+          if (gameState.phase === 'LOBBY' && !this._hasJoinedRoom) {
+            this.renderPlayerJoinModal();
           }
 
-          // If host is already PLAYING, transition late-joining player into game!
           if (data.payload.phase === 'PLAYING' && gameState.phase !== 'PLAYING') {
             this.startGame();
           }
@@ -643,6 +667,7 @@ class AppController {
         break;
 
       case 'START_GAME':
+        // [FIX-4] Sync team count from Host START_GAME payload
         gameState.setupTeams(data.payload.teamCount || 2);
         if (data.payload.teams) {
           data.payload.teams.forEach(t => {
@@ -666,8 +691,34 @@ class AppController {
         }
         break;
 
-      case 'CLAIM_ITEM':
-        this.executeItemClaim(data.payload.itemId, data.payload.teamId, null);
+      case 'CLAIM_ITEM': {
+        const { itemId: cItemId, teamId: cTeamId } = data.payload;
+
+        // [FIX-2] Guard: skip if already claimed (race condition between tabs)
+        if (gameState.isClaimed(cItemId)) break;
+
+        // HOST projector screen: show popup as spectator display
+        // Other player laptops: update visual/score silently without popup
+        const amHost = gameState.role === 'HOST';
+        this.executeItemClaim(cItemId, cTeamId, null, amHost);
+        break;
+      }
+
+      case 'CONFIRM_CLAIM_ITEM':
+        // [FIX-1] Host authority state correction broadcast to all 4 players
+        if (gameState.role === 'PLAYER') {
+          if (data.payload.itemOwnership) {
+            gameState.itemOwnership = { ...data.payload.itemOwnership };
+          }
+          if (data.payload.teams) {
+            data.payload.teams.forEach(t => {
+              const localT = gameState.teams.find(lt => lt.id === t.id);
+              if (localT) localT.score = t.score;
+            });
+          }
+          uiManager.updateHeader();
+          uiManager.renderHotspots(MISTAKES_DATA, (item, e) => this.handleHitspotClick(item, e));
+        }
         break;
 
       case 'USE_LENS':
@@ -676,6 +727,8 @@ class AppController {
         break;
 
       case 'RESET_GAME':
+        this._countIntervals.forEach(id => clearInterval(id));
+        this._countIntervals = [];
         gameState.resetRound();
         uiManager.renderHotspots(MISTAKES_DATA, (item, e) => this.handleHitspotClick(item, e));
         this.startGame();
@@ -683,10 +736,11 @@ class AppController {
     }
   }
 
-  // Victory Handler (All 10 Items Claimed) -> Victory Podium Screen
   handleVictory() {
     gameState.phase = 'FINISHED';
     this.stopTimerLoop();
+    this._countIntervals.forEach(id => clearInterval(id));
+    this._countIntervals = [];
 
     uiManager.startConfetti();
     soundEngine.playWin();
@@ -703,10 +757,11 @@ class AppController {
     }, 600);
   }
 
-  // Timeout Handler (180s Expired)
   handleTimeout() {
     gameState.phase = 'TIMEOUT';
     this.stopTimerLoop();
+    this._countIntervals.forEach(id => clearInterval(id));
+    this._countIntervals = [];
 
     const leaderboard = gameState.getLeaderboard();
 
