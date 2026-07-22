@@ -1,7 +1,7 @@
 /**
  * Multi-Laptop Real-Time Network Engine (network.js)
  * Mengelola sinkronisasi realtime antar LAPTOP di jaringan Wi-Fi lokal via WebSocket Server, BroadcastChannel, LocalStorage Sync & PeerJS WebRTC P2P.
- * Dilengkapi dengan Anti-Duplicate Message Deduplication & Auto Sender Filter Engine.
+ * Dilengkapi dengan STUN ICE Servers, Reliable SCTP DataChannel, & Anti-Duplicate Deduplication.
  */
 
 class NetworkEngine {
@@ -81,7 +81,7 @@ class NetworkEngine {
     });
   }
 
-  // Host: Buat Room P2P PeerJS
+  // Host: Buat Room P2P PeerJS (Dengan STUN Server & Connection Cleanup)
   createHostPeer(roomCode, onPeerReady) {
     if (typeof Peer === 'undefined') {
       console.log("PeerJS fallback to WebSocket/LocalSync engine.");
@@ -91,9 +91,31 @@ class NetworkEngine {
 
     try {
       const cleanPeerId = `ECOBRICK-${roomCode.replace(/[^A-Z0-9]/gi, '')}`;
-      if (this.peer) this.peer.destroy();
+      
+      // Clear previous peer instance to avoid 'unavailable-id' collision
+      if (this.peer) {
+        try {
+          this.peer.disconnect();
+          this.peer.destroy();
+        } catch (e) {}
+        this.peer = null;
+      }
 
-      this.peer = new Peer(cleanPeerId, { debug: 1 });
+      const peerOptions = {
+        debug: 1,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            { urls: 'stun:stun.services.mozilla.com' }
+          ]
+        }
+      };
+
+      this.peer = new Peer(cleanPeerId, peerOptions);
 
       this.peer.on('open', (id) => {
         console.log("Host Peer Created:", id);
@@ -118,7 +140,7 @@ class NetworkEngine {
       });
 
       this.peer.on('error', (err) => {
-        console.warn("PeerJS Host Warning (Using Local WebSocket Sync):", err.type);
+        console.warn("PeerJS Host Warning:", err.type || err);
         if (onPeerReady) onPeerReady(roomCode);
       });
     } catch (e) {
@@ -127,7 +149,7 @@ class NetworkEngine {
     }
   }
 
-  // Player: Hubungkan Laptop ke Host Room Code
+  // Player: Hubungkan Laptop ke Host Room Code (Dengan STUN Server & Reliable DataChannel)
   joinPlayerPeer(roomCode, onConnected) {
     if (typeof Peer === 'undefined') {
       if (onConnected) onConnected(true);
@@ -135,12 +157,33 @@ class NetworkEngine {
     }
 
     try {
-      if (this.peer) this.peer.destroy();
-      this.peer = new Peer({ debug: 1 });
+      if (this.peer) {
+        try {
+          this.peer.disconnect();
+          this.peer.destroy();
+        } catch (e) {}
+        this.peer = null;
+      }
 
-      this.peer.on('open', () => {
+      const peerOptions = {
+        debug: 1,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            { urls: 'stun:stun.services.mozilla.com' }
+          ]
+        }
+      };
+
+      this.peer = new Peer(peerOptions);
+
+      this.peer.on('open', (playerPeerId) => {
         const cleanHostId = `ECOBRICK-${roomCode.replace(/[^A-Z0-9]/gi, '')}`;
-        this.hostConn = this.peer.connect(cleanHostId);
+        this.hostConn = this.peer.connect(cleanHostId, { reliable: true });
 
         this.hostConn.on('open', () => {
           console.log("Connected to Host Laptop:", roomCode);
@@ -151,12 +194,14 @@ class NetworkEngine {
           this.handleIncomingMessage(data);
         });
 
-        this.hostConn.on('error', () => {
+        this.hostConn.on('error', (err) => {
+          console.warn("Host connection error:", err);
           if (onConnected) onConnected(false);
         });
       });
 
-      this.peer.on('error', () => {
+      this.peer.on('error', (err) => {
+        console.warn("Player PeerJS Error:", err.type || err);
         if (onConnected) onConnected(true); // Fallback to local channel / WebSocket
       });
     } catch (e) {
@@ -164,7 +209,7 @@ class NetworkEngine {
     }
   }
 
-  // Broadcast pesan realtime ke seluruh LAPTOP yang terhubung di jaringan Wi-Fi
+  // Broadcast pesan realtime ke seluruh LAPTOP yang terhubung di jaringan
   broadcast(actionType, payload = {}) {
     const msgId = `${this.clientId}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     
@@ -187,7 +232,7 @@ class NetworkEngine {
       } catch (e) {}
     }
 
-    // 2. BroadcastChannel (Seketika antar tab/jendela di laptop sama/jaringan lokal)
+    // 2. BroadcastChannel (Seketika antar tab/jendela di laptop sama)
     if (this.broadcastChannel) {
       this.broadcastChannel.postMessage(message);
     }
@@ -199,13 +244,15 @@ class NetworkEngine {
       }
     } catch (e) {}
 
-    // 4. PeerJS WebRTC P2P Sync (Antar Laptop Berbeda via WebRTC)
+    // 4. PeerJS WebRTC P2P Sync (Antar Laptop Berbeda via WebRTC STUN DataChannel)
     if (gameState.role === 'HOST') {
       this.connections.forEach(conn => {
-        if (conn.open) conn.send(message);
+        if (conn.open) {
+          try { conn.send(message); } catch (e) {}
+        }
       });
     } else if (this.hostConn && this.hostConn.open) {
-      this.hostConn.send(message);
+      try { this.hostConn.send(message); } catch (e) {}
     }
   }
 
