@@ -93,9 +93,9 @@ class GameState {
 
   get activeTeam() {
     if (this.role === 'PLAYER') {
-      return this.teams.find(t => t.id === this.myTeamId) || this.teams[0];
+      return this.teams.find(t => t.id === this.myTeamId) || this.teamPresets.find(t => t.id === this.myTeamId) || this.teamPresets[0];
     }
-    return this.teams[this.currentTeamIndex] || this.teams[0];
+    return this.teams[this.currentTeamIndex] || this.teamPresets[this.currentTeamIndex] || this.teamPresets[0];
   }
 
   get totalClaimed() {
