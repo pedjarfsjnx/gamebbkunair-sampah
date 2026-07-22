@@ -80,6 +80,14 @@ class GameState {
     this.firstClaimTime = {}; // { teamId: timestamp ms } — waktu berhasil klaim pertama kali
   }
 
+  // Bersihkan dan format Kode Ruangan secara otomatis (mencegah bug SILIR-SILIR 2LSZ)
+  sanitizeRoomCode(raw) {
+    if (!raw) return '';
+    const clean = raw.toUpperCase().replace(/SILIR/g, '').replace(/[^A-Z0-9]/g, '');
+    const codePart = clean.slice(-4);
+    return codePart ? `SILIR-${codePart}` : raw.toUpperCase();
+  }
+
   // Hasilkan Kode Ruangan acak (4 huruf/angka)
   generateRoomCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

@@ -264,9 +264,9 @@ class AppController {
     });
 
     const playerHTML = `
-      <p>Masukkan Kode Ruangan yang tampil di layar Proyektor Host Guru:</p>
+      <p>Masukkan 4 Karakter Kode Ruangan yang tampil di Proyektor Guru:</p>
       <div class="room-input-container">
-        <input type="text" id="input-room-code" class="room-input-field" placeholder="SILIR-XXXX" maxlength="10" value="${gameState.roomCode || ''}">
+        <input type="text" id="input-room-code" class="room-input-field" placeholder="Ketik Kode (misal: 2LSZ)" maxlength="15" value="${gameState.roomCode ? gameState.roomCode.replace('SILIR-', '') : ''}">
       </div>
       <p style="margin-top: 10px; font-weight: 700;">Pilih Tim Laptop Ini (1 Laptop Mewakili 1 Tim):</p>
       <div class="team-select-grid" id="team-select-grid">
@@ -281,26 +281,23 @@ class AppController {
       buttonText: "🔌 Hubungkan Ke Host Proyektor",
       onButtonClick: () => {
         const inputEl = document.getElementById('input-room-code');
-        let enteredCode = inputEl ? inputEl.value.trim().toUpperCase() : '';
+        let rawCode = inputEl ? inputEl.value.trim() : '';
 
-        if (!enteredCode) {
+        if (!rawCode) {
           alert("Mohon masukkan Kode Ruangan terlebih dahulu!");
           return;
         }
 
-        if (!enteredCode.startsWith('SILIR-')) {
-          enteredCode = `SILIR-${enteredCode}`;
-        }
+        const enteredCode = gameState.sanitizeRoomCode(rawCode);
 
         gameState.roomCode = enteredCode;
-        // [FIX-4] Don't override team count; use whatever Host set via ROOM_STATE
         networkEngine.initRoomChannel(enteredCode);
 
         networkEngine.joinPlayerPeer(enteredCode, (success) => {
           console.log("Player Connected Status:", success);
         });
 
-        this._hasJoinedRoom = true; // [FIX-3] Mark as joined so modal won't re-render
+        this._hasJoinedRoom = true;
 
         networkEngine.broadcast('PLAYER_JOINED', {
           roomCode: enteredCode,
