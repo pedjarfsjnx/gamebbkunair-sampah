@@ -5,7 +5,7 @@
 
 class GameState {
   constructor() {
-    this.totalMistakes = 10;
+    this.totalMistakes = 20;
     this.maxTimeSeconds = 180; // 3 Menit (180 Detik)
     this.hintIntervalSeconds = 25;
     this.maxHints = 3;
