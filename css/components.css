@@ -35,27 +35,40 @@
 .room-code-banner {
   display: flex;
   align-items: center;
-  gap: 0.5vw;
+  gap: 8px;
   background: var(--honey-amber);
   color: var(--ink-dark);
-  padding: 4px 12px;
+  padding: 6px 14px;
   border-radius: 20px;
-  font-size: clamp(0.8rem, 1.1vw, 1rem);
+  font-size: 0.9rem;
   font-weight: 900;
   border: 2.5px solid var(--ink-dark);
   box-shadow: 3px 3px 0px var(--ink-dark);
   margin-left: 0.5vw;
+  text-shadow: none !important;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .room-code-banner .room-label {
-  opacity: 0.85;
+  opacity: 0.9;
   font-size: 0.75rem;
+  font-weight: 800;
+  text-shadow: none !important;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  line-height: 1;
 }
 
 .room-code-banner .room-code-val {
-  color: var(--terracotta-red);
-  font-size: 1.1rem;
-  letter-spacing: 1px;
+  color: #C62828;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-shadow: none !important;
+  white-space: nowrap;
+  font-family: var(--font-heading);
+  line-height: 1;
 }
 
 /* Header Center - MULTIPLAYER TEAM SCORECARDS (COMIC CARDS) */
