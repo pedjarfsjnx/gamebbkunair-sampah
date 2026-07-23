@@ -33,42 +33,50 @@
 }
 
 .room-code-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--honey-amber);
-  color: var(--ink-dark);
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 900;
-  border: 2.5px solid var(--ink-dark);
-  box-shadow: 3px 3px 0px var(--ink-dark);
-  margin-left: 0.5vw;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background: var(--honey-amber) !important;
+  color: var(--ink-dark) !important;
+  padding: 4px 14px !important;
+  border-radius: 20px !important;
+  font-size: 0.9rem !important;
+  font-weight: 900 !important;
+  border: 2.5px solid var(--ink-dark) !important;
+  box-shadow: 3px 3px 0px var(--ink-dark) !important;
+  margin-left: 0.5vw !important;
   text-shadow: none !important;
-  white-space: nowrap;
-  flex-shrink: 0;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  height: 36px !important;
+  box-sizing: border-box !important;
 }
 
 .room-code-banner .room-label {
-  opacity: 0.9;
-  font-size: 0.75rem;
-  font-weight: 800;
+  color: var(--ink-dark) !important;
+  font-family: 'Outfit', 'Nunito', sans-serif !important;
+  opacity: 0.9 !important;
+  font-size: 0.78rem !important;
+  font-weight: 800 !important;
   text-shadow: none !important;
-  white-space: nowrap;
-  letter-spacing: 0.5px;
-  line-height: 1;
+  white-space: nowrap !important;
+  letter-spacing: 0.5px !important;
+  line-height: 1 !important;
+  display: inline-block !important;
 }
 
 .room-code-banner .room-code-val {
-  color: #C62828;
-  font-size: 1.15rem;
-  font-weight: 900;
-  letter-spacing: 1.5px;
+  color: #C62828 !important;
+  font-family: 'Outfit', 'Nunito', sans-serif !important;
+  font-size: 1.15rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 1.5px !important;
   text-shadow: none !important;
-  white-space: nowrap;
-  font-family: var(--font-heading);
-  line-height: 1;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+  display: inline-block !important;
 }
 
 /* Header Center - MULTIPLAYER TEAM SCORECARDS (COMIC CARDS) */
